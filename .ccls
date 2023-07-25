@@ -1,0 +1,9 @@
+clang++
+-std=c++17
+-I.
+-Ispdlog/include
+-DCACHE_LINE_SIZE=64
+-isystem/usr/lib/llvm-14/lib/clang/14.0.0/include
+-isystem/usr/local/include
+-isystem/usr/include/x86_64-linux-gnu
+-isystem/usr/include

@@ -12,7 +12,8 @@ if platform.system() != 'Linux':
     print("We only support Linux for now")
     sys.exit(-1)
 
-buck_path = find_executable('buck')
+#buck_path = find_executable('buck')
+buck_path = '/home/scofield/caracal/buck/buck-out/gen/ce9b6f2e/programs/buck.pex' 
 
 if buck_path:
     print("Found system buck installation")
