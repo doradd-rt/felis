@@ -171,7 +171,7 @@ bool LocalTransport::TryFlushForCore(int core_id)
   return success;
 }
 
-size_t NodeConfiguration::g_nr_threads = 8;
+size_t NodeConfiguration::g_nr_threads = 24;
 bool NodeConfiguration::g_data_migration = false;
 
 static NodeConfiguration::NodePeerConfig ParseNodePeerConfig(json11::Json json, std::string name)

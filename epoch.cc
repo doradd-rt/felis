@@ -501,6 +501,7 @@ void EpochClient::OnExecuteComplete()
     // End of the experiment.
     perf.Show("All epochs done in");
     auto thr = NumberOfTxns() * 1000 * (g_max_epoch - 1) / perf.duration_ms();
+    logger->info("NumberOfTxns {}, g_max_epoch {}", NumberOfTxns(), g_max_epoch);
     logger->info("Throughput {} txn/s", thr);
     logger->info("Insert / Initialize / Execute {} ms {} ms {} ms",
                  stats.insert_time_ms, stats.initialize_time_ms, stats.execution_time_ms);

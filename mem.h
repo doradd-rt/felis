@@ -16,7 +16,7 @@
 
 namespace mem {
 
-constexpr size_t kNrCorePerNode = 8;
+constexpr size_t kNrCorePerNode = 24;
 
 enum MemAllocType {
   GenericMemory,

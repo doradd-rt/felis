@@ -132,7 +132,7 @@ std::mutex * ParallelAllocationPolicy::g_core_locks;
 
 void InitTotalNumberOfCores(int nr_cores)
 {
-  ParallelAllocationPolicy::g_nr_cores = nr_cores;
+  ParallelAllocationPolicy::g_nr_cores = 24;
   ParallelAllocationPolicy::g_core_locks = new std::mutex[nr_cores];
 }
 
