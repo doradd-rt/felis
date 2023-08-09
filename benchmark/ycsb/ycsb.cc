@@ -147,7 +147,7 @@ void RMWTxn::WriteRow(TxnRow vhandle)
 {
   auto dbv = vhandle.Read<Ycsb::Value>();
   dbv.v.assign(Client::zero_data, 100);
-  dbv.v.resize_junk(999);
+  dbv.v.resize_junk(900);
   vhandle.Write(dbv);
 }
 
@@ -298,7 +298,7 @@ void YcsbLoader::Run()
       Ycsb::Key dbk;
       Ycsb::Value dbv;
       dbk.k = i;
-      dbv.v.resize_junk(999);
+      dbv.v.resize_junk(900);
       auto handle = mgr.Get<ycsb::Ycsb>().SearchOrCreate(dbk.EncodeView(buf));
       // TODO: slice mapping table stuff?
       felis::InitVersion(handle, dbv.Encode());
