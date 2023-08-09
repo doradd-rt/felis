@@ -226,7 +226,7 @@ void VersionBufferHead::ScanAndFinalize(int owner_core, long from, long to,
 
 ContentionManager::ContentionManager()
 {
-  auto nr_threads = NodeConfiguration::g_nr_threads;
+  auto nr_threads = 24;// NodeConfiguration::g_nr_threads;
   auto nr_slots = g_prealloc_count / nr_threads;
 
   std::vector<std::thread> tasks;
