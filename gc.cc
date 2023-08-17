@@ -30,7 +30,7 @@ static_assert(sizeof(GarbageBlock) == GarbageBlock::kBlockSize, "Block doesn't m
 
 struct GarbageBlockSlab {
   static constexpr size_t kPreallocPerCore = 64_K;
-  static constexpr size_t kNrQueue = 200;
+  static constexpr size_t kNrQueue = 310;
   util::MCSSpinLock lock;
   int core_id;
   util::GenericListNode<GarbageBlock> free;
