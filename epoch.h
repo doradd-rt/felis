@@ -149,6 +149,7 @@ class EpochClient {
 
   uint64_t GenerateSerialId(uint64_t epoch_nr, uint64_t sequence);
   void GenerateBenchmarks();
+  void PopulateTxnsFromLogs(char* &input, uint32_t log_len);
   void Start();
 
   auto completion_object() { return &completion; }
@@ -173,6 +174,7 @@ class EpochClient {
   void ExecuteEpoch();
 
   virtual BaseTxn *CreateTxn(uint64_t serial_id) = 0;
+  virtual BaseTxn *ParseAndPopulateTxn(uint64_t serial_id, char* &input) = 0;
 
  private:
   long WaitCountPerMS();

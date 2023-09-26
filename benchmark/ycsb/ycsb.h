@@ -47,8 +47,10 @@ class Client : public felis::EpochClient {
   Client() noexcept;
   unsigned int LoadPercentage() final override { return 100; }
   felis::BaseTxn *CreateTxn(uint64_t serial_id) final override;
+  felis::BaseTxn *ParseAndPopulateTxn(uint64_t serial_id, char* &input) final override;
 
   template <typename T> T GenerateTransactionInput();
+  template <typename T> T ParseTransactionInput(char* &input);
 };
 
 class YcsbLoader : public go::Routine {

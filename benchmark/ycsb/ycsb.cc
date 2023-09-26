@@ -49,6 +49,8 @@ RMWStruct Client::GenerateTransactionInput<RMWStruct>()
   int nr_lsb = 63 - __builtin_clzll(g_table_size) - kNrMSBContentionKey;
   size_t mask = 0;
   if (nr_lsb > 0) mask = (1 << nr_lsb) - 1;
+  //printf("__builtin_clzll: %d, kNrMSBContentionKey: %d, nr_lsb: %d, mask: %zu\n",
+  //    __builtin_clzll(g_table_size), kNrMSBContentionKey, nr_lsb, mask);
 
   for (int i = 0; i < kTotal; i++) {
  again:
@@ -68,12 +70,37 @@ RMWStruct Client::GenerateTransactionInput<RMWStruct>()
   return s;
 }
 
+struct __attribute__((packed)) YCSBTransactionMarshalled
+{
+  uint64_t indices[kTotal];
+  uint16_t write_set;
+  uint8_t  pad[46];
+};
+static_assert(sizeof(YCSBTransactionMarshalled) == 128);
+
+template <>
+RMWStruct Client::ParseTransactionInput<RMWStruct>(char* &input)
+{
+  RMWStruct s;
+  const YCSBTransactionMarshalled* txm =
+    reinterpret_cast<const YCSBTransactionMarshalled*>(input);
+
+  for (int i = 0; i < kTotal; i++) {
+    s.keys[i] = txm->indices[i];
+    //printf("key is %lu\n", s.keys[i]);
+  }
+
+  input += sizeof(YCSBTransactionMarshalled);
+  return s;
+}
+
 char Client::zero_data[100];
 
 class RMWTxn : public Txn<RMWState>, public RMWStruct {
   Client *client;
  public:
   RMWTxn(Client *client, uint64_t serial_id);
+  RMWTxn(Client *client, uint64_t serial_id, char* &input);
   void Run() override final;
   void Prepare() override final;
   void PrepareInsert() override final {}
@@ -93,6 +120,12 @@ class RMWTxn : public Txn<RMWState>, public RMWStruct {
 RMWTxn::RMWTxn(Client *client, uint64_t serial_id)
     : Txn<RMWState>(serial_id),
       RMWStruct(client->GenerateTransactionInput<RMWStruct>()),
+      client(client)
+{}
+
+RMWTxn::RMWTxn(Client *client, uint64_t serial_id, char* &input)
+    : Txn<RMWState>(serial_id),
+      RMWStruct(client->ParseTransactionInput<RMWStruct>(input)),
       client(client)
 {}
 
@@ -341,6 +374,11 @@ Client::Client() noexcept
 BaseTxn *Client::CreateTxn(uint64_t serial_id)
 {
   return new RMWTxn(this, serial_id);
+}
+
+BaseTxn *Client::ParseAndPopulateTxn(uint64_t serial_id, char* &input)
+{
+  return new RMWTxn(this, serial_id, input);
 }
 
 }

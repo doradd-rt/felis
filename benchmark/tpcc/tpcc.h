@@ -430,6 +430,7 @@ class Client : public felis::EpochClient, public ClientBase {
 
  protected:
   felis::BaseTxn *CreateTxn(uint64_t serial_id) final override;
+  felis::BaseTxn *ParseAndPopulateTxn(uint64_t serial_id, char* &input) final override;
 };
 
 using TxnFactory =

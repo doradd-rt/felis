@@ -104,8 +104,8 @@ void SortedArrayVHandle::IncreaseSize(int delta, uint64_t epoch_nr)
     probes::VHandleExpand{(void *) this, capacity, new_cap}();
 
     abort_if(new_versions == nullptr,
-             "Memory allocation failure, second ver epoch {}",
-             versions[1] >> 32);
+             "Memory allocation failure, second ver epoch {}, size {}, cap {}, new_cap {}",
+             versions[1] >> 32, size, capacity, new_cap);
     /*
     if (EpochClient::g_workload_client) {
       auto &lm = EpochClient::g_workload_client->get_execution_locality_manager();

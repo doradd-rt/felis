@@ -1,6 +1,9 @@
 #include <unistd.h>
 #include <cstdio>
 #include <string_view>
+#include <string>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #include "module.h"
 #include "node_config.h"
@@ -91,9 +94,30 @@ int main(int argc, char *argv[])
   // init tables from the workload module
   Module<WorkloadModule>::InitModule(workload_name);
 
+  // parsing txn from external logs instead of in-mem generation
+  int fd = open(Options::kLogFile.Get().c_str(), O_RDONLY);
+  if (fd == -1) 
+  {
+    logger->info("File not existed\n");
+    exit(1);
+  }
+
+  struct stat sb;
+  fstat(fd, &sb);
+  void* ret = reinterpret_cast<char*>(mmap(nullptr, sb.st_size, PROT_READ,
+    MAP_PRIVATE | MAP_POPULATE, fd, 0));
+
+  char* content = reinterpret_cast<char*>(ret);
+  uint32_t count = *(reinterpret_cast<uint32_t*>(content));
+  printf("log count is %u\n", count);
+  content += sizeof(uint32_t);
+  char* read_head = content;
+
   auto client = EpochClient::g_workload_client;
-  logger->info("Generating Benchmarks...");
-  client->GenerateBenchmarks();
+  //logger->info("Generating Benchmarks...");
+  //client->GenerateBenchmarks();
+  logger->info("Populating txns from logs...");
+  client->PopulateTxnsFromLogs(read_head, count);
 
   console.UpdateServerStatus(Console::ServerStatus::Listening);
   logger->info("Ready. Waiting for run command from the controller.");

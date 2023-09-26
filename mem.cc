@@ -536,6 +536,7 @@ ParallelRegion::ParallelRegion()
 void *ParallelRegion::Alloc(size_t sz)
 {
   int k = SizeToClass(sz);
+  //fprintf(stderr, "Alloc here %d\n", k);
   if (k < 0) return nullptr;
 
   auto &p = pools[k];
@@ -553,6 +554,7 @@ void ParallelRegion::Free(void *ptr, int alloc_core, size_t sz)
 {
   if (ptr == nullptr) return;
   int k = SizeToClass(sz);
+  //fprintf(stderr, "Free here %d\n", k);
   if (k < 0) std::abort();
   pools[k].Free(ptr, alloc_core);
 }

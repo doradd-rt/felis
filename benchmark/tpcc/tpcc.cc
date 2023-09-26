@@ -855,6 +855,12 @@ felis::BaseTxn *Client::CreateTxn(uint64_t serial_id)
   return TxnFactory::Create(TxnType(txn_type_id), this, serial_id);
 }
 
+felis::BaseTxn *Client::ParseAndPopulateTxn(uint64_t serial_id, char* &input)
+{
+  //return new RMWTxn(this, serial_id, input);
+  return TxnFactory::Create(TxnType(0), this, serial_id);
+}
+
 using namespace felis;
 
 int TpccSliceRouter::SliceToNodeId(int16_t slice_id)

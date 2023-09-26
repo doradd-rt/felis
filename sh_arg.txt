@@ -1,0 +1,1 @@
+-c 127.0.0.1:3148 -n host1 -w ycsb -Xcpu08 -Xmem18G -XYcsbReadOnly8 -XYcsbContentionKey7 -XEpochSize50000 -XNrEpoch80 -XVHandleBatchAppend

@@ -195,6 +195,27 @@ void EpochClient::GenerateBenchmarks()
   }
 }
 
+void EpochClient::PopulateTxnsFromLogs(char* &input, uint32_t log_len)
+{
+  char* read_top = input;
+  uint32_t count = 0;
+  all_txns = new EpochTxnSet[g_max_epoch - 1];
+  for (auto i = 1; i < g_max_epoch; i++) {
+    for (uint64_t j = 1; j <= NumberOfTxns(); j++) {
+      if (count >= log_len) {
+        count = 0;
+        input = read_top;
+      }
+      auto d = std::div((int)(j - 1), NodeConfiguration::g_nr_threads);
+      auto t = d.rem, pos = d.quot;
+      BaseTxn::g_cur_numa_node = t / mem::kNrCorePerNode;
+      all_txns[i - 1].per_core_txns[t]->txns[pos] = 
+        ParseAndPopulateTxn(GenerateSerialId(i, j), input);
+      count++;
+    }
+  }
+}
+
 void EpochClient::Start()
 {
   // Ready to start!

@@ -1,0 +1,23 @@
+EpochClient::Start()
+  - control.Reset(InitEpoch)
+    - CallTxn (Insert): setup func and state for both control and worker routines
+  - WakeUp(&control)
+
+
+CallBack
+  - OnInsertComplete
+    - CallTxns(Initialize):
+      - RMWTxn::Prepare():
+        - batching append versions (incl. pending) to version arrays (BaseTxn::BaseTxnRow)
+  - OnInitializeComplete: CallTxns(Execute)
+    - CallTxns(Execute):
+      - set ContentionManager
+      - RMWTxn::Run()
+        - Spawn futures of WriteRow operations
+        - invoke futures and execute the rest read operations
+
+EpochExecutionDispatchService (scheduling txns during execution)
+  - routine_sched.cc
+  - queues of pieces (work element for workers)
+  - queue->pq.sched_pol, i.e., PriorityQueue scheduling policy (Ycsb: ConservativePriorityScheduler)
+    - make_heap could form a pq, since pop_heap will pop out the maximum value
