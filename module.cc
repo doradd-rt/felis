@@ -72,7 +72,8 @@ class AllocatorModule : public Module<CoreModule> {
     std::vector<std::thread> tasks;
 
     mem::InitTotalNumberOfCores(NodeConfiguration::g_nr_threads);
-    mem::InitSlab(Options::kMem.ToLargeNumber("4G"));
+    //mem::InitSlab(Options::kMem.ToLargeNumber("4G"));
+    mem::InitSlab(Options::kMem.ToLargeNumber("16M"));
 
     // Legacy
     mem::GetDataRegion().ApplyFromConf(console.FindConfigSection("mem"));
