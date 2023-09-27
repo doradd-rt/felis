@@ -31,6 +31,21 @@ class EpochControl : public go::Routine {
   }
 };
 
+class EpochDispatcher : public go::Routine {
+  char* read_top;
+  char* read_pos;
+  uint32_t log_len;
+  EpochClient *client; 
+public:
+  EpochDispatcher(char* read_top, uint32_t log_len, EpochClient *client)
+    : read_top(read_top), log_len(log_len), client(client) 
+  {
+    read_pos = read_top;
+  }
+
+  void Run() override final;
+};
+
 using TxnMemberFunc = void (BaseTxn::*)();
 
 class EpochClientBaseWorker : public go::Routine {
@@ -119,6 +134,7 @@ class EpochClient {
   friend class AllocStateTxnWorker;
   friend class EpochExecutionDispatchService;
   friend class ContentionManager;
+  friend class EpochDispatcher;
 
   int core_limit;
   int best_core;
@@ -133,6 +149,7 @@ class EpochClient {
 
   PerfLog perf;
   EpochControl control;
+  EpochDispatcher *dispatcher;
   EpochWorkers *workers[NodeConfiguration::kMaxNrThreads];
 
   CommitBuffer *commit_buffer;
@@ -149,6 +166,7 @@ class EpochClient {
 
   uint64_t GenerateSerialId(uint64_t epoch_nr, uint64_t sequence);
   void GenerateBenchmarks();
+  void InitializeDispatcher(char* input, uint32_t count);
   void PopulateTxnsFromLogs(char* &input, uint32_t log_len);
   void Start();
 
@@ -203,10 +221,12 @@ class EpochMemory;
 class Epoch;
 
 class EpochManager {
+  friend class EpochDispatcher;
   template <typename T> friend struct util::InstanceInit;
   EpochMemory *mem;
   std::atomic<Epoch *> cur_epoch;
   std::atomic_uint64_t cur_epoch_nr;
+  std::atomic_uint64_t ready_epoch_nr;
 
   EpochManager(EpochMemory *mem, Epoch *epoch);
  public:
@@ -214,6 +234,7 @@ class EpochManager {
   uint8_t *ptr(uint64_t epoch_nr, int node_id, uint64_t offset) const;
 
   uint64_t current_epoch_nr() const { return cur_epoch_nr; }
+  uint64_t get_ready_epoch_nr() const { return ready_epoch_nr; }
   Epoch *current_epoch() const { return epoch(cur_epoch_nr); }
 
   void DoAdvance(EpochClient *client);

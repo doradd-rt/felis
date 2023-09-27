@@ -114,7 +114,7 @@ class AllocatorModule : public Module<CoreModule> {
     }
 
     // Setup GC
-    GC::g_gc_every_epoch = 8;// /*8 for EpochSize-100k:*/ 2 + Options::kMajorGCThreshold.ToLargeNumber("600K") / EpochClient::g_txn_per_epoch;
+    GC::g_gc_every_epoch = 600;// /*8 for EpochSize-100k:*/ 2 + Options::kMajorGCThreshold.ToLargeNumber("600K") / EpochClient::g_txn_per_epoch;
     GC::g_lazy = Options::kMajorGCLazy;
 
     // logger->info("setting up regions {}", i);

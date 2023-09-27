@@ -1,8 +1,11 @@
-EpochClient::Start()
-  - control.Reset(InitEpoch)
-    - CallTxn (Insert): setup func and state for both control and worker routines
-  - WakeUp(&control)
+EpochClient::PopulateTxnsFromLogs() || GenerateBenchmarks()
 
+EpochClient::Start()
+  - control.Reset(InitializeEpoch)
+    - CallTxn (Insert): setup func and state for both control and worker routines
+    - EpochClient::CallTxns(epoch_nr, func, label) is the generic function that triggers
+    each of the epoch phases, tagged by 'label'.
+  - WakeUp(&control)
 
 CallBack
   - OnInsertComplete
@@ -21,3 +24,21 @@ EpochExecutionDispatchService (scheduling txns during execution)
   - queues of pieces (work element for workers)
   - queue->pq.sched_pol, i.e., PriorityQueue scheduling policy (Ycsb: ConservativePriorityScheduler)
     - make_heap could form a pq, since pop_heap will pop out the maximum value
+
+User-level threading - gopp
+  - InitThreadPool(NrThreads)
+  - GetSchedulerFromPool(core_id)->WakeUp(go::routine) # could pin thread id here
+
+Streaming Design
+  - Pin a long-running dispatcher (always active) to a core
+    - class EpochDispatcher : public go::Routine
+    - under EpochClient, so is visible to the all_txns struct
+  - Dispatcher inits the txn for an epoch according to an external source (log, network requests)
+  - Then, triggers the first epoch. Keeps processing external sources and populate txn
+  - OnExecuctionComplete: check if next epoch is already settled to begin (via flag[NrEpoch])
+  - Hack
+    - Pin dispatcher routine to the last core (biggest core id)
+    - Decrement iterations of loops involving nr_threads or NodeConfiguration::g_nr_threads by 1
+
+YCSB workloads
+  - Loader - init tables and modules (config, coroutines, allocator)

@@ -127,12 +127,19 @@ EpochClient::EpochClient()
   best_core = std::numeric_limits<int>::max();
   best_duration = std::numeric_limits<int>::max();
   core_limit = conf.g_nr_threads;
+#ifdef DISPATCHER
+  core_limit--;
+#endif
 
   auto cnt_len = conf.nr_nodes() * conf.nr_nodes() * PromiseRoutineTransportService::kPromiseMaxLevels;
   unsigned long *cnt_mem = nullptr;
   EpochWorkers *workers_mem = nullptr;
 
+#ifdef DISPATCHER
+  for (int t = 0; t < NodeConfiguration::g_nr_threads - 1; t++) {
+#else
   for (int t = 0; t < NodeConfiguration::g_nr_threads; t++) {
+#endif
     auto d = std::div(t, mem::kNrCorePerNode);
     auto numa_node = d.quot;
     auto numa_offset = d.rem;
@@ -167,6 +174,9 @@ EpochClient::EpochClient()
 EpochTxnSet::EpochTxnSet()
 {
   auto nr_threads = NodeConfiguration::g_nr_threads;
+#ifdef DISPATCHER
+  nr_threads--;
+#endif
   auto d = std::div((int) EpochClient::g_txn_per_epoch, nr_threads);
   for (auto t = 0; t < nr_threads; t++) {
     size_t nr = d.quot;
@@ -193,6 +203,52 @@ void EpochClient::GenerateBenchmarks()
       all_txns[i - 1].per_core_txns[t]->txns[pos] = CreateTxn(GenerateSerialId(i, j));
     }
   }
+}
+
+void EpochDispatcher::Run()
+{
+  uint32_t count = 0;
+  bool before_first_epoch = true;
+  auto &mgr = util::Instance<EpochManager>();
+  for (auto i = 1; i < client->g_max_epoch; i++) {
+    for (uint64_t j = 1; j <= client->NumberOfTxns(); j++) {
+      if (count >= log_len) {
+        count = 0;
+        read_pos = read_top;
+      }
+      auto d = std::div((int)(j - 1), NodeConfiguration::g_nr_threads - 1);
+      auto t = d.rem, pos = d.quot;
+      BaseTxn::g_cur_numa_node = t / mem::kNrCorePerNode;
+      client->all_txns[i - 1].per_core_txns[t]->txns[pos] = 
+        client->ParseAndPopulateTxn(client->GenerateSerialId(i, j), read_pos);
+
+      // mark ready epochs and only trigger the first
+      mgr.ready_epoch_nr.fetch_add(1);
+
+      if (before_first_epoch) {
+        client->g_workload_client->Start();
+        before_first_epoch = false;
+      } 
+      
+      count++;
+    }
+  }
+}
+
+void EpochClient::InitializeDispatcher(char* input, uint32_t count)
+{
+  dispatcher = new EpochDispatcher(input, count, this);
+  all_txns = new EpochTxnSet[g_max_epoch - 1];
+
+  util::Instance<Console>().UpdateServerStatus(felis::Console::ServerStatus::Running);
+  abort_if(g_workload_client == nullptr,
+           "Workload Module did not setup the EpochClient properly");
+
+  // pin the dispatcher to the last core
+  go::GetSchedulerFromPool(NodeConfiguration::g_nr_threads)->WakeUp(dispatcher);
+
+  util::Instance<Console>().WaitForServerStatus(Console::ServerStatus::Exiting); 
+  go::WaitThreadPool();
 }
 
 void EpochClient::PopulateTxnsFromLogs(char* &input, uint32_t log_len)
@@ -316,7 +372,11 @@ void CallTxnsWorker::Run()
   if ((EpochClient::g_enable_granola || EpochClient::g_enable_pwv) && client->callback.phase == EpochPhase::Execute) {
     g_finished.fetch_add(1);
 
-    while (EpochClient::g_enable_granola && g_finished.load() != NodeConfiguration::g_nr_threads)
+    size_t worker_cnt = NodeConfiguration::g_nr_threads;
+#ifdef DISPATCHER
+    worker_cnt--;
+#endif
+    while (EpochClient::g_enable_granola && g_finished.load() != worker_cnt)
       _mm_pause();
   }
 
@@ -341,6 +401,9 @@ void CallTxnsWorker::Run()
 void EpochClient::CallTxns(uint64_t epoch_nr, TxnMemberFunc func, const char *label)
 {
   auto nr_threads = NodeConfiguration::g_nr_threads;
+#ifdef DISPATCHER
+  nr_threads--;
+#endif
   conf.ResetBufferPlan();
   conf.SendStartPhase();
   callback.label = label;
@@ -387,9 +450,20 @@ void EpochClient::InitializeEpoch()
   mgr.DoAdvance(this);
   auto epoch_nr = mgr.current_epoch_nr();
 
+#ifdef DISPATCHER
+  auto ready_epoch_nr = mgr.get_ready_epoch_nr();
+  if (epoch_nr <= ready_epoch_nr)
+    logger->info("Safe to trigger the next epoch {}", epoch_nr);
+  else
+    logger->info("Warning: the next epoch is not ready!!");
+#endif
+
   util::Impl<PromiseAllocationService>().Reset();
 
   auto nr_threads = NodeConfiguration::g_nr_threads;
+#ifdef DISPATCHER
+  nr_threads--;
+#endif
 
   cur_txns = &all_txns[epoch_nr - 1];
   total_nr_txn = NumberOfTxns();
@@ -470,7 +544,11 @@ void EpochClient::OnExecuteComplete()
   fmt::memory_buffer buf;
   long ctt = 0;
   auto cur_epoch_nr = util::Instance<EpochManager>().current_epoch_nr();
+#ifdef DISPATCHER
+  for (int i = 0; i < NodeConfiguration::g_nr_threads - 1; i++) {
+#else
   for (int i = 0; i < NodeConfiguration::g_nr_threads; i++) {
+#endif
     auto c = util::Impl<VHandleSyncService>().GetWaitCountStat(i);
     ctt += c / core_limit;
     fmt::format_to(buf, "{} ", c);
@@ -559,8 +637,12 @@ static constexpr size_t kEpochPromiseMiniBrkSize = 4 * CACHE_LINE_SIZE;
 EpochPromiseAllocationService::EpochPromiseAllocationService()
 {
   size_t acc = 0;
-  for (size_t i = 0; i <= NodeConfiguration::g_nr_threads; i++) {
-    auto s = kEpochPromiseAllocationWorkerLimit / NodeConfiguration::g_nr_threads;
+  size_t worker_cnt = NodeConfiguration::g_nr_threads;
+#ifdef DISPATCHER
+  worker_cnt--;
+#endif
+  for (size_t i = 0; i <= worker_cnt; i++) {
+    auto s = kEpochPromiseAllocationWorkerLimit / worker_cnt;
     int numa_node = -1;
     if (i == 0) {
       s = kEpochPromiseAllocationMainLimit;
@@ -595,7 +677,11 @@ void *EpochPromiseAllocationService::Alloc(size_t size)
 
 void EpochPromiseAllocationService::Reset()
 {
+#ifdef DISPATCHER
+  for (size_t i = 0; i <= NodeConfiguration::g_nr_threads - 1; i++) {
+#else
   for (size_t i = 0; i <= NodeConfiguration::g_nr_threads; i++) {
+#endif
     // logger->info("  PromiseAllocator {} used {}MB. Resetting now.", i,
     // brks[i].current_size() >> 20);
     brks[i]->Reset();

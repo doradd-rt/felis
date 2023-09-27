@@ -116,6 +116,11 @@ int main(int argc, char *argv[])
   auto client = EpochClient::g_workload_client;
   //logger->info("Generating Benchmarks...");
   //client->GenerateBenchmarks();
+  
+#ifdef DISPATCHER
+  logger->info("dispatcher streaming fashion\n");
+  client->InitializeDispatcher(read_head, count);
+#else
   logger->info("Populating txns from logs...");
   client->PopulateTxnsFromLogs(read_head, count);
 
@@ -132,6 +137,6 @@ int main(int argc, char *argv[])
 
   console.WaitForServerStatus(Console::ServerStatus::Exiting);
   go::WaitThreadPool();
-
+#endif
   return 0;
 }

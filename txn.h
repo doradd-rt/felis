@@ -24,6 +24,7 @@ using UpdateForKeyCallback = void (*)(VHandle *row, void *ctx);
 class BaseTxn {
  protected:
   friend class EpochClient;
+  friend class EpochDispatcher;
 
   Epoch *epoch;
   uint64_t sid;
