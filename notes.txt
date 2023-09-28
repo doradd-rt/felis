@@ -42,3 +42,20 @@ Streaming Design
 
 YCSB workloads
   - Loader - init tables and modules (config, coroutines, allocator)
+
+Log Latency
+  - struct RMWStruct { uint64_t keys[kTotal]; };
+  - RMWTxn::RMWTxn(Client *client, uint64_t serial_id, char* &input)
+      : Txn<RMWState>(serial_id), RMWStruct(client->ParseTransactionInput<RMWStruct>(input)),
+        client(client) {}
+    - Txn(uint64_t serial_id) : BaseTxn(serial_id) {}
+  - Txn Logic: RMWTxn::Run() {}
+  - client->per_core_txns[thread_id] is of type: *TxnSet
+  - struct TxnSet {
+      size_t nr;
+      BaseTxn *txns[];
+      ts *init_times[];
+    }
+  - per_core_txns[t]->txns[pos] = client->ParseAndPopulateTxn(id, read_pos);
+  - ParseAndPopulateTxn(id, input)
+    { return new RMWTxn(this, serial_id, input); };

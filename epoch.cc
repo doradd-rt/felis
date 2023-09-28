@@ -240,6 +240,12 @@ void EpochClient::InitializeDispatcher(char* input, uint32_t count)
   dispatcher = new EpochDispatcher(input, count, this);
   all_txns = new EpochTxnSet[g_max_epoch - 1];
 
+#ifdef LATENCY
+#define LOG_SIZE 400'000'000
+  log_arr = new std::vector<uint32_t>();
+  log_arr->reserve(LOG_SIZE);
+#endif
+
   util::Instance<Console>().UpdateServerStatus(Console::ServerStatus::Listening);
   logger->info("Ready. Waiting for run command from the controller.");
   util::Instance<Console>().WaitForServerStatus(felis::Console::ServerStatus::Running);
@@ -546,11 +552,11 @@ void EpochClient::OnExecuteComplete()
   fmt::memory_buffer buf;
   long ctt = 0;
   auto cur_epoch_nr = util::Instance<EpochManager>().current_epoch_nr();
+  size_t worker_cnt = NodeConfiguration::g_nr_threads;
 #ifdef DISPATCHER
-  for (int i = 0; i < NodeConfiguration::g_nr_threads - 1; i++) {
-#else
-  for (int i = 0; i < NodeConfiguration::g_nr_threads; i++) {
+  worker_cnt--;
 #endif
+  for (int i = 0; i < worker_cnt; i++) {
     auto c = util::Impl<VHandleSyncService>().GetWaitCountStat(i);
     ctt += c / core_limit;
     fmt::format_to(buf, "{} ", c);
@@ -597,6 +603,16 @@ void EpochClient::OnExecuteComplete()
   }
 
   if (cur_epoch_nr + 1 < g_max_epoch) {
+#if defined(DISPATCHER) && defined(LATENCY)
+    // collecting all duration before dealloc
+    auto epoch_id = util::Instance<EpochManager>().current_epoch_nr();
+    for (int t = 0; t < NodeConfiguration::g_nr_threads - 1; t++) {
+      for (int i = 0; i < all_txns[epoch_id - 1].per_core_txns[t]->nr; i++) {
+        auto d = all_txns[epoch_id - 1].per_core_txns[t]->txns[i]->duration;
+        log_arr->push_back(d);
+      }
+    }
+#endif
     InitializeEpoch();
   } else {
     // End of the experiment.
@@ -626,6 +642,13 @@ void EpochClient::OnExecuteComplete()
       std::ofstream result_output(
           Options::kOutputDir.Get() + "/" + node_name + now + ".json");
       result_output << json11::Json(result).dump() << std::endl;
+#if defined(DISPATCHER) && defined(LATENCY)
+      std::ofstream latency_output(
+          Options::kOutputDir.Get() + "/" + node_name + "latency" + now + ".txt");
+      for (auto i : *log_arr)
+        latency_output << i << "\n";
+      latency_output << std::endl;
+#endif
     }
     conf.CloseAndShutdown();
     util::Instance<Console>().UpdateServerStatus(Console::ServerStatus::Exiting);

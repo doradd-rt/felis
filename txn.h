@@ -28,6 +28,10 @@ class BaseTxn {
 
   Epoch *epoch;
   uint64_t sid;
+#if defined(DISPATCHER) && defined(LATENCY)
+  std::chrono::time_point<std::chrono::system_clock> init_time;
+  uint32_t duration;
+#endif
 
   using BrkType = std::array<mem::Brk *, NodeConfiguration::kMaxNrThreads / mem::kNrCorePerNode>;
   static BrkType g_brk;
@@ -35,7 +39,12 @@ class BaseTxn {
 
  public:
   BaseTxn(uint64_t serial_id)
-      : epoch(nullptr), sid(serial_id) {}
+    : epoch(nullptr), sid(serial_id), duration(0)
+  {
+#if defined(DISPATCHER) && defined(LATENCY)
+    init_time = std::chrono::system_clock::now();
+#endif
+  }
 
   static void *operator new(size_t nr_bytes) { return g_brk[g_cur_numa_node]->Alloc(nr_bytes); }
   static void operator delete(void *ptr) {}

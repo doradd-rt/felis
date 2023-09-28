@@ -211,9 +211,6 @@ class Flushable {
     bool need_do_flush = false;
     // Also flush the main go-routine
     auto nr_threads = NodeConfiguration::g_nr_threads + 1;
-#ifdef DISPATCHER
-    //nr_threads--;
-#endif
 
     while (flushed.count() < nr_threads) {
       int i = 0;

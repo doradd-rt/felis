@@ -212,6 +212,9 @@ class EpochClient {
   std::atomic<EpochTxnSet *> cur_txns;
   unsigned long total_nr_txn;
   unsigned long *per_core_cnts[NodeConfiguration::kMaxNrThreads];
+#if defined(DISPATCHER) && defined(LATENCY)
+  std::vector<uint32_t>* log_arr;
+#endif
   LocalityManager cont_lmgr;
 
   NodeConfiguration &conf;
