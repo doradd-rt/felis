@@ -309,12 +309,16 @@ const size_t EpochExecutionDispatchService::kHashTableSize = 100001;
 
 EpochExecutionDispatchService::EpochExecutionDispatchService()
 {
-  auto max_item_percore = g_max_item / NodeConfiguration::g_nr_threads;
+  size_t worker_cnt = NodeConfiguration::g_nr_threads;
+#ifdef DISPATCHER
+  worker_cnt--;
+#endif
+  auto max_item_percore = g_max_item / worker_cnt;
   logger->info("{} per_core pool capacity {}, element size {}",
                (void *) this, max_item_percore, kPriorityQueuePoolElementSize);
   Queue *qmem = nullptr;
 
-  for (int i = 0; i < NodeConfiguration::g_nr_threads; i++) {
+  for (int i = 0; i < worker_cnt; i++) {
     auto &queue = queues[i];
     auto d = std::div(i, mem::kNrCorePerNode);
     auto numa_node = d.quot;
@@ -369,7 +373,11 @@ EpochExecutionDispatchService::EpochExecutionDispatchService()
 
 void EpochExecutionDispatchService::Reset()
 {
-  for (int i = 0; i < NodeConfiguration::g_nr_threads; i++) {
+  size_t worker_cnt = NodeConfiguration::g_nr_threads;
+#ifdef DISPATCHER
+  worker_cnt--;
+#endif
+  for (int i = 0; i < worker_cnt; i++) {
     auto &q = queues[i];
     while (q->state.running == State::kDeciding) _mm_pause();
     q->zq.end.store(0);

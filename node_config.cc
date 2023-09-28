@@ -109,6 +109,9 @@ void LocalDispatcherImpl::FlushOnCore(int tid, unsigned int start, unsigned int 
   if (start == end) return;
   auto q = queues[tid];
   auto nr_threads = NodeConfiguration::g_nr_threads;
+#ifdef DISPATCHER
+  nr_threads--;
+#endif
 
   if (!q->need_scan) {
     SubmitOnCore(q->routines.data(), start, end, tid);
@@ -321,7 +324,11 @@ bool NodeConfiguration::FlushBufferPlan(unsigned long *per_core_cnts)
     }
   }
 
-  if (local_batch_completed.fetch_add(1) + 1 < g_nr_threads)
+  size_t worker_cnt = g_nr_threads;
+#ifdef DISPATCHER
+  worker_cnt--;
+#endif
+  if (local_batch_completed.fetch_add(1) + 1 < worker_cnt)
     return false;
 
   local_batch->node_id = (ulong) node_id();

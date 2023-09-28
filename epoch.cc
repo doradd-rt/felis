@@ -240,7 +240,9 @@ void EpochClient::InitializeDispatcher(char* input, uint32_t count)
   dispatcher = new EpochDispatcher(input, count, this);
   all_txns = new EpochTxnSet[g_max_epoch - 1];
 
-  util::Instance<Console>().UpdateServerStatus(felis::Console::ServerStatus::Running);
+  util::Instance<Console>().UpdateServerStatus(Console::ServerStatus::Listening);
+  logger->info("Ready. Waiting for run command from the controller.");
+  util::Instance<Console>().WaitForServerStatus(felis::Console::ServerStatus::Running);
   abort_if(g_workload_client == nullptr,
            "Workload Module did not setup the EpochClient properly");
 

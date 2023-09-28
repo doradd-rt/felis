@@ -284,7 +284,11 @@ void BasePieceCollection::QueueRoutine(PieceRoutine **routines, size_t nr_routin
 void BasePieceCollection::FlushScheduler()
 {
   auto &svc = util::Impl<PromiseRoutineDispatchService>();
-  for (int i = 0; i < g_nr_threads; i++) {
+  size_t worker_cnt = g_nr_threads;
+#ifdef DISPATCHER
+  worker_cnt--;
+#endif
+  for (int i = 0; i < worker_cnt; i++) {
     if (!svc.IsRunning(i)) {
       go::GetSchedulerFromPool(i + 1)->WakeUp(new ExecutionRoutine());
     }
