@@ -222,9 +222,6 @@ void EpochDispatcher::Run()
       client->all_txns[i - 1].per_core_txns[t]->txns[pos] = 
         client->ParseAndPopulateTxn(client->GenerateSerialId(i, j), read_pos);
 
-      // mark ready epochs and only trigger the first
-      mgr.ready_epoch_nr.fetch_add(1);
-
       if (before_first_epoch) {
         client->g_workload_client->Start();
         before_first_epoch = false;
@@ -232,6 +229,9 @@ void EpochDispatcher::Run()
       
       count++;
     }
+
+    // mark ready epochs and only trigger the first
+    mgr.ready_epoch_nr.fetch_add(1);
   }
 }
 
@@ -459,11 +459,9 @@ void EpochClient::InitializeEpoch()
   auto epoch_nr = mgr.current_epoch_nr();
 
 #ifdef DISPATCHER
-  auto ready_epoch_nr = mgr.get_ready_epoch_nr();
-  if (epoch_nr <= ready_epoch_nr)
-    logger->info("Safe to trigger the next epoch {}", epoch_nr);
-  else
-    logger->info("Warning: the next epoch is not ready!!");
+  // spin waiting if the epoch is not ready yet
+  while(epoch_nr > mgr.get_ready_epoch_nr()) _mm_pause();
+  logger->info("Safe to trigger the next epoch {}", epoch_nr);
 #endif
 
   util::Impl<PromiseAllocationService>().Reset();
@@ -785,6 +783,9 @@ void EpochManager::DoAdvance(EpochClient *client)
 
 EpochManager::EpochManager(EpochMemory *mem, Epoch *epoch)
     : cur_epoch_nr(0), cur_epoch(epoch), mem(mem)
+#ifdef DISPATCHER
+      , ready_epoch_nr(0)
+#endif
 {
   cur_epoch.load()->mem = mem;
 }
