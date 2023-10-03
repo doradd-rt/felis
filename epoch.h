@@ -8,6 +8,7 @@
 #include "completion.h"
 #include "shipping.h"
 #include "locality_manager.h"
+#include "lancet/inter_arrival.h"
 
 namespace felis {
 
@@ -36,11 +37,13 @@ class EpochDispatcher : public go::Routine {
   char* read_pos;
   uint32_t log_len;
   EpochClient *client; 
+  struct rand_gen *dist; // inter-arrival distribution
 public:
-  EpochDispatcher(char* read_top, uint32_t log_len, EpochClient *client)
-    : read_top(read_top), log_len(log_len), client(client) 
+  EpochDispatcher(char* read_top, uint32_t log_len, EpochClient *client, char *gen_type)
+    : read_top(read_top), log_len(log_len), client(client)
   {
     read_pos = read_top;
+    dist = lancet_init_rand(gen_type);
   }
 
   void Run() override final;
@@ -229,15 +232,18 @@ class EpochManager {
   EpochMemory *mem;
   std::atomic<Epoch *> cur_epoch;
   std::atomic_uint64_t cur_epoch_nr;
+#ifdef DISPATCHER
   std::atomic_uint64_t ready_epoch_nr;
-
+#endif
   EpochManager(EpochMemory *mem, Epoch *epoch);
  public:
   Epoch *epoch(uint64_t epoch_nr) const;
   uint8_t *ptr(uint64_t epoch_nr, int node_id, uint64_t offset) const;
 
   uint64_t current_epoch_nr() const { return cur_epoch_nr; }
+#ifdef DISPATCHER
   uint64_t get_ready_epoch_nr() const { return ready_epoch_nr; }
+#endif
   Epoch *current_epoch() const { return epoch(cur_epoch_nr); }
 
   void DoAdvance(EpochClient *client);

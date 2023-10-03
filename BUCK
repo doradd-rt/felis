@@ -55,6 +55,7 @@ db_srcs = [
     'xxHash/xxhash.c', 'util/os_linux.cc', 'util/locks.cc',
     'pwv_graph.cc',
     'gopp/gopp.cc', 'gopp/channels.cc',
+    'lancet/inter_arrival.c', 'lancet/cpp_rand.cc',
     'gopp/start-x86_64.S'] + [
         ('masstree/kvthread.cc', ['-include', 'masstree/build/config.h']),
 	('masstree/string.cc', ['-include', 'masstree/build/config.h']),
@@ -77,6 +78,7 @@ cxx_library(
     name='ycsb',
     srcs=ycsb_srcs,
     compiler_flags=includes + ['-DDISPATCHER', '-DLATENCY'],
+    #compiler_flags=includes + ['-DDISPATCHER'],
     headers=db_headers + ycsb_headers,
     link_whole=True,
 )
@@ -86,6 +88,7 @@ cxx_binary(
     srcs=['main.cc', 'module.cc'] + db_srcs,
     headers=db_headers,
     compiler_flags=includes + ['-DDISPATCHER', '-DLATENCY'],
+    #compiler_flags=includes + ['-DDISPATCHER'],
     linker_flags=libs,
     #deps=[':tpcc', ':ycsb'],
     deps=[':ycsb'],

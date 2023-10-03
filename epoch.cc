@@ -237,7 +237,7 @@ void EpochDispatcher::Run()
 
 void EpochClient::InitializeDispatcher(char* input, uint32_t count)
 {
-  dispatcher = new EpochDispatcher(input, count, this);
+  dispatcher = new EpochDispatcher(input, count, this, "fixed");
   all_txns = new EpochTxnSet[g_max_epoch - 1];
 
 #ifdef LATENCY
