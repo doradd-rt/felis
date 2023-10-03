@@ -210,8 +210,12 @@ void EpochDispatcher::Run()
   uint32_t count = 0;
   bool before_first_epoch = true;
   auto &mgr = util::Instance<EpochManager>();
+  long next_ts = time_ns();
   for (auto i = 1; i < client->g_max_epoch; i++) {
     for (uint64_t j = 1; j <= client->NumberOfTxns(); j++) {
+      // spin-wait 
+      while(time_ns() < next_ts) _mm_pause();
+
       if (count >= log_len) {
         count = 0;
         read_pos = read_top;
@@ -228,6 +232,7 @@ void EpochDispatcher::Run()
       } 
       
       count++;
+      next_ts += gen_inter_arrival(dist);
     }
 
     // mark ready epochs and only trigger the first
@@ -237,7 +242,8 @@ void EpochDispatcher::Run()
 
 void EpochClient::InitializeDispatcher(char* input, uint32_t count)
 {
-  dispatcher = new EpochDispatcher(input, count, this, "fixed");
+  std::string gen_type = "fixed:100"; // average interval in micro-second
+  dispatcher = new EpochDispatcher(input, count, this, const_cast<char*>(gen_type.c_str()));
   all_txns = new EpochTxnSet[g_max_epoch - 1];
 
 #ifdef LATENCY

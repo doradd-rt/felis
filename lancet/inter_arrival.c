@@ -26,10 +26,19 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "cpp_rand.h"
 #include "error.h"
 #include "rand_gen.h"
+
+#ifndef __STDC_NO_THREADS__
+  #include <threads.h>
+#else
+  // POSIX alternative
+  #define _POSIX_C_SOURCE 199309L
+  #include <pthread.h>
+#endif
 
 /*
  * Deterministic distribution
@@ -384,4 +393,17 @@ void set_avg_ext(struct rand_gen *gen, double avg)
 	default:
 		assert(0);
 	}
+}
+
+long gen_inter_arrival(struct rand_gen *gen)
+{
+  return lround(generate(gen) * 1000);
+}
+
+long time_ns()
+{
+	struct timespec ts;
+	int r = clock_gettime(CLOCK_MONOTONIC, &ts);
+	assert(r == 0);
+	return (ts.tv_nsec + ts.tv_sec * 1e9);
 }

@@ -59,3 +59,7 @@ Log Latency
   - per_core_txns[t]->txns[pos] = client->ParseAndPopulateTxn(id, read_pos);
   - ParseAndPopulateTxn(id, input)
     { return new RMWTxn(this, serial_id, input); };
+
+Inter-arrival Distribution
+  - r2p2 - spin() in dpdk-apps/r2p2-synthetic-time.c
+  - lancet - rand_gen and get_ia (i.e., interarrival), agents/tp_r2p2.c: next_tx += get_ia();

@@ -337,6 +337,9 @@ static struct param_3 *parse_param_3(char *type)
 
 extern "C" struct rand_gen *lancet_init_rand(char *gen_type);
 
+extern "C" long gen_inter_arrival(struct rand_gen *gen);
+
+extern "C" long time_ns();
 #if 0
 {
 	struct rand_gen *gen = (struct rand_gen *)malloc(sizeof(struct rand_gen));
