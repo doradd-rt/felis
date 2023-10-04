@@ -397,7 +397,7 @@ void set_avg_ext(struct rand_gen *gen, double avg)
 
 long gen_inter_arrival(struct rand_gen *gen)
 {
-  return lround(generate(gen) * 1000);
+  return lround(generate(gen));
 }
 
 long time_ns()

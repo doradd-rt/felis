@@ -44,6 +44,9 @@ public:
   {
     read_pos = read_top;
     dist = lancet_init_rand(gen_type);
+    for (int i = 0; i < 20; i++) {
+      printf("gen_ia is %ld\n", gen_inter_arrival(dist));
+    }
   }
 
   void Run() override final;

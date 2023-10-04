@@ -39,7 +39,10 @@ class BaseTxn {
 
  public:
   BaseTxn(uint64_t serial_id)
-    : epoch(nullptr), sid(serial_id), duration(0)
+    : epoch(nullptr), sid(serial_id)
+#if defined(DISPATCHER) && defined(LATENCY)
+      , duration(0)
+#endif
   {
 #if defined(DISPATCHER) && defined(LATENCY)
     init_time = std::chrono::system_clock::now();

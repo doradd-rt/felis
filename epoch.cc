@@ -242,7 +242,7 @@ void EpochDispatcher::Run()
 
 void EpochClient::InitializeDispatcher(char* input, uint32_t count)
 {
-  std::string gen_type = "fixed:100"; // average interval in micro-second
+  std::string gen_type = "exp:100"; // average interval in nano-second
   dispatcher = new EpochDispatcher(input, count, this, const_cast<char*>(gen_type.c_str()));
   all_txns = new EpochTxnSet[g_max_epoch - 1];
 

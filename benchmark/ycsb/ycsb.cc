@@ -229,7 +229,12 @@ void RMWTxn::Run()
           }
         },
         aff);
-
+#if defined(DISPATCHER) && defined(LATENCY)
+    auto time_now = std::chrono::system_clock::now();
+    std::chrono::duration<double> log_duration = time_now - init_time;
+      // log at precision - 100ns
+    duration = static_cast<uint32_t>(log_duration.count() * 10'000'000);
+#endif
   } else if (Client::g_enable_granola || Client::g_enable_pwv) {
     RunOnPartition(
         [this](auto part, auto root, const auto &t) {
