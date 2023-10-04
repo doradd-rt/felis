@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
   
 #ifdef DISPATCHER
   logger->info("dispatcher streaming fashion\n");
-  client->InitializeDispatcher(read_head, count);
+  client->InitializeDispatcher(read_head, count, Options::kInterArrival.Get());
 #else
   logger->info("Populating txns from logs...");
   client->PopulateTxnsFromLogs(read_head, count);

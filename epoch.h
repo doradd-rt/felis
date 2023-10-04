@@ -44,9 +44,11 @@ public:
   {
     read_pos = read_top;
     dist = lancet_init_rand(gen_type);
-    for (int i = 0; i < 20; i++) {
+#if 0
+    for (int i = 0; i < 10; i++) {
       printf("gen_ia is %ld\n", gen_inter_arrival(dist));
     }
+#endif
   }
 
   void Run() override final;
@@ -172,7 +174,7 @@ class EpochClient {
 
   uint64_t GenerateSerialId(uint64_t epoch_nr, uint64_t sequence);
   void GenerateBenchmarks();
-  void InitializeDispatcher(char* input, uint32_t count);
+  void InitializeDispatcher(char* input, uint32_t count, std::string gen_type);
   void PopulateTxnsFromLogs(char* &input, uint32_t log_len);
   void Start();
 

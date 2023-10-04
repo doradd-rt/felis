@@ -55,6 +55,7 @@ struct Options {
   static inline const auto kMem = Option("mem");
   static inline const auto kOutputDir = Option("OutputDir");
   static inline const auto kLogFile = Option("LogFile");
+  static inline const auto kInterArrival = Option("InterArrival");
   static inline const auto kDataMigration = Option("DataMigrationMode", false);
   static inline const auto kMaxNodeLimit = Option("MaxNodeLimit");
 
