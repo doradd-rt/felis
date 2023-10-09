@@ -111,7 +111,11 @@ class RMWTxn : public Txn<RMWState>, public RMWStruct {
   void RunOnPartition(Func f) {
     auto handle = index_handle();
     for (int i = 0; i < kTotal; i++) {
-      auto part = (keys[i] * NodeConfiguration::g_nr_threads) / Client::g_table_size;
+      auto worker_cnt = NodeConfiguration::g_nr_threads;
+#ifdef DISPATCHER
+      worker_cnt--;
+#endif
+      auto part = (keys[i] * worker_cnt) / Client::g_table_size;
       f(part, root, Tuple<unsigned long, int, decltype(state), decltype(handle), int>(keys[i], i, state, handle, part));
     }
   }
@@ -267,6 +271,12 @@ void RMWTxn::Run()
                 }
               },
               part);
+#if defined(DISPATCHER) && defined(LATENCY)
+            auto time_now = std::chrono::system_clock::now();
+            std::chrono::duration<double> log_duration = time_now - init_time;
+            // log at precision - 100ns
+            duration = static_cast<uint32_t>(log_duration.count() * 10'000'000);
+#endif
         });
   } else {
     // Bohm
