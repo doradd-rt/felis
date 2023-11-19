@@ -63,3 +63,9 @@ Log Latency
 Inter-arrival Distribution
   - r2p2 - spin() in dpdk-apps/r2p2-synthetic-time.c
   - lancet - rand_gen and get_ia (i.e., interarrival), agents/tp_r2p2.c: next_tx += get_ia();
+
+Adding support for GarbageCollect for vhandle WriteRow
+  - ycsb.cc: RMWTxn::WriteRow(TxnRow vhandle) -> vhandle.Write();
+  - txn_cc.h: TxnRow::Write -> return WriteVarStr
+  - txn.cc: BaseTxn::BaseTxnRow::WriteVarStr(VarStr *obj) -> return vhandle->WriteWithVersion()
+  - vhandle->GarbageCollect()
