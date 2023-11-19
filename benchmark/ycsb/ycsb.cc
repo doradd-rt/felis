@@ -180,17 +180,29 @@ void RMWTxn::Prepare()
   }
 }
 
+#define TIME 200
+
 void RMWTxn::WriteRow(TxnRow vhandle)
 {
+#if 1
+  auto time_now = time_ns();
+  while (time_ns() < (time_now + TIME));
+#else
   auto dbv = vhandle.Read<Ycsb::Value>();
   dbv.v.assign(Client::zero_data, 100);
   dbv.v.resize_junk(900);
   vhandle.Write(dbv);
+#endif
 }
 
 void RMWTxn::ReadRow(TxnRow vhandle)
 {
+#if 1
+  auto time_now = time_ns();
+  while (time_ns() < (time_now + TIME));
+#else
   vhandle.Read<Ycsb::Value>();
+#endif
 }
 
 void RMWTxn::Run()
@@ -233,6 +245,7 @@ void RMWTxn::Run()
           }
         },
         aff);
+
 #if defined(DISPATCHER) && defined(LATENCY)
     auto time_now = std::chrono::system_clock::now();
     std::chrono::duration<double> log_duration = time_now - init_time;
