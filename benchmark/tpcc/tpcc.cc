@@ -866,9 +866,9 @@ felis::BaseTxn *Client::ParseAndPopulateTxn(uint64_t serial_id, char* &input)
     reinterpret_cast<const TPCCTransactionMarshalled*>(input);
 
   if (txm->txn_type)
-    return new NewOrderTxn(this, serial_id, input);
-  else
     return new PaymentTxn(this, serial_id, input);
+  else
+    return new NewOrderTxn(this, serial_id, input);
 
 }
 

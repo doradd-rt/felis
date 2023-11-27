@@ -30,7 +30,7 @@ class BaseTxn {
   uint64_t sid;
 
 #if defined(DISPATCHER) && defined(LATENCY)
-  std::chrono::time_point<std::chrono::high_resolution_clock> init_time;
+  std::chrono::time_point<std::chrono::system_clock> init_time;
   //uint32_t duration;
   std::chrono::nanoseconds duration;
 #endif
@@ -47,7 +47,7 @@ class BaseTxn {
 #endif
   {
 #if defined(DISPATCHER) && defined(LATENCY)
-    //init_time = std::chrono::system_clock::now();
+    init_time = std::chrono::system_clock::now();
 #endif
   }
 

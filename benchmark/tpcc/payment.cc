@@ -29,14 +29,27 @@ PaymentStruct ClientBase::ParseTransactionInput<PaymentStruct>(char* &input)
   PaymentStruct s;
   const TPCCTransactionMarshalled* txm =
     reinterpret_cast<const TPCCTransactionMarshalled*>(input);
- 
+
+  //printf("w_id is %u, d_id is %u, c_id is %u, c_w_id is %u, c_d_id is %u, p_amount is %u\n", 
+  //    txm->params[0], txm->params[1], txm->params[2], txm->params[53], txm->params[54], txm->params[52]);
   s.warehouse_id = txm->params[0];
   s.district_id = txm->params[1];
   s.customer_id = txm->params[2];
 
+#if 0
   s.customer_warehouse_id = txm->params[53];
   s.customer_district_id = txm->params[54];;
-  s.payment_amount = txm->params[52];
+#else
+  if (nr_warehouses() == 1
+      || RandomNumber(1, 100) > int(kPaymentRemoteCustomer * 100)) {
+    s.customer_warehouse_id = s.warehouse_id;
+    s.customer_district_id = s.district_id;
+  } else {
+    s.customer_warehouse_id = RandomNumberExcept(1, nr_warehouses(), s.warehouse_id);
+    s.customer_district_id = PickDistrict();
+  }
+#endif
+  s.payment_amount = (int)txm->params[52];
   s.ts = GetCurrentTime();
 
   input += sizeof(TPCCTransactionMarshalled);
@@ -138,7 +151,6 @@ void PaymentTxn::Run()
     auto [node, bitmap] = p;
 
     if (conf.node_id() == node) {
-
       state->warehouse_future = UpdateForKey(
           node, state->warehouse,
           [](const auto &ctx, VHandle *row) {
@@ -248,6 +260,7 @@ void PaymentTxn::Run()
             },
             aff);
       }
+      // TODO: add timestamp here!
     } else {
       root->AttachRoutine(
           MakeContext(bitmap, payment_amount), node,

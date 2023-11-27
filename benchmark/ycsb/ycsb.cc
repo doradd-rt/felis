@@ -288,12 +288,12 @@ void RMWTxn::Run()
         aff);
 
 #if defined(DISPATCHER) && defined(LATENCY)
-    auto time_now = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> log_duration = time_now - init_time;
+    //auto time_now = std::chrono::high_resolution_clock::now();
+    //std::chrono::duration<double> log_duration = time_now - init_time;
     //std::chrono::duration<double> log_duration = time_now - exec_init_time;
       // log at precision - 100ns
     //duration = static_cast<uint32_t>(log_duration.count() * 1'000'000);
-    duration = std::chrono::duration_cast<std::chrono::nanoseconds>(time_now - init_time);
+    //duration = std::chrono::duration_cast<std::chrono::nanoseconds>(time_now - init_time);
 #endif
   } else if (Client::g_enable_granola || Client::g_enable_pwv) {
     RunOnPartition(

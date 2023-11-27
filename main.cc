@@ -118,6 +118,7 @@ int main(int argc, char *argv[])
   //logger->info("Generating Benchmarks...");
   //client->GenerateBenchmarks();
   
+
 #ifdef DISPATCHER
   logger->info("dispatcher streaming fashion\n");
   client->InitializeDispatcher(read_head, count, Options::kInterArrival.Get());
