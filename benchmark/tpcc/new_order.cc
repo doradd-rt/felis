@@ -37,9 +37,46 @@ NewOrderStruct ClientBase::GenerateTransactionInput<NewOrderStruct>()
   return s;
 }
 
+/*struct TPCCTransactionMarshalled
+{
+  uint8_t txn_type; // 0 for NewOrder, 1 for Payment
+  uint64_t cown_ptrs[30];
+  uint32_t params[65];
+  uint8_t padding[11];
+} __attribute__((packed));*/
+
+template <>
+NewOrderStruct ClientBase::ParseTransactionInput<NewOrderStruct>(char* &input)
+{
+  NewOrderStruct s;
+  const TPCCTransactionMarshalled* txm =
+    reinterpret_cast<const TPCCTransactionMarshalled*>(input);
+ 
+  s.warehouse_id = txm->params[0];
+  s.district_id = txm->params[1];
+  s.customer_id = txm->params[2];
+  s.detail.nr_items = txm->params[3]; // 5 to 15
+
+  for (int i = 0; i < s.detail.nr_items; i++) {
+    s.detail.item_id[i] = txm->params[5+i];
+    s.detail.order_quantities[i] = txm->params[35+i]; 
+    s.detail.supplier_warehouse_id[i] = txm->params[20+i];
+  }
+  s.ts_now = GetCurrentTime();
+
+  input += sizeof(TPCCTransactionMarshalled);
+  return s;
+}
+
 NewOrderTxn::NewOrderTxn(Client *client, uint64_t serial_id)
     : Txn<NewOrderState>(serial_id),
       NewOrderStruct(client->GenerateTransactionInput<NewOrderStruct>()),
+      client(client)
+{}
+
+NewOrderTxn::NewOrderTxn(Client *client, uint64_t serial_id, char* &input)
+    : Txn<NewOrderState>(serial_id),
+      NewOrderStruct(client->ParseTransactionInput<NewOrderStruct>(input)),
       client(client)
 {}
 

@@ -51,6 +51,7 @@ class PaymentTxn : public Txn<PaymentState>, public PaymentStruct {
   Client *client;
  public:
   PaymentTxn(Client *client, uint64_t serial_id);
+  PaymentTxn(Client *client, uint64_t serial_id, char* &input);
 
   void Prepare() override final;
   void Run() override final;

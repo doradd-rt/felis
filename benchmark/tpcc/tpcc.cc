@@ -21,6 +21,9 @@
 
 #include "felis_probes.h"
 
+#include "payment.h"
+#include "new_order.h"
+
 namespace tpcc {
 
 using felis::Console;
@@ -858,8 +861,15 @@ felis::BaseTxn *Client::CreateTxn(uint64_t serial_id)
 
 felis::BaseTxn *Client::ParseAndPopulateTxn(uint64_t serial_id, char* &input)
 {
-  //return new RMWTxn(this, serial_id, input);
-  return TxnFactory::Create(TxnType(0), this, serial_id);
+  //return TxnFactory::Create(TxnType(0), this, serial_id);
+  const TPCCTransactionMarshalled* txm =
+    reinterpret_cast<const TPCCTransactionMarshalled*>(input);
+
+  if (txm->txn_type)
+    return new NewOrderTxn(this, serial_id, input);
+  else
+    return new PaymentTxn(this, serial_id, input);
+
 }
 
 using namespace felis;

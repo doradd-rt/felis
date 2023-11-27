@@ -23,9 +23,35 @@ PaymentStruct ClientBase::GenerateTransactionInput<PaymentStruct>()
   return s;
 }
 
+template <>
+PaymentStruct ClientBase::ParseTransactionInput<PaymentStruct>(char* &input)
+{ 
+  PaymentStruct s;
+  const TPCCTransactionMarshalled* txm =
+    reinterpret_cast<const TPCCTransactionMarshalled*>(input);
+ 
+  s.warehouse_id = txm->params[0];
+  s.district_id = txm->params[1];
+  s.customer_id = txm->params[2];
+
+  s.customer_warehouse_id = txm->params[53];
+  s.customer_district_id = txm->params[54];;
+  s.payment_amount = txm->params[52];
+  s.ts = GetCurrentTime();
+
+  input += sizeof(TPCCTransactionMarshalled);
+  return s;
+}
+
 PaymentTxn::PaymentTxn(Client *client, uint64_t serial_id)
     : Txn<PaymentState>(serial_id),
       PaymentStruct(client->GenerateTransactionInput<PaymentStruct>()),
+      client(client)
+{}
+
+PaymentTxn::PaymentTxn(Client *client, uint64_t serial_id, char* &input)
+    : Txn<PaymentState>(serial_id),
+      PaymentStruct(client->ParseTransactionInput<PaymentStruct>(input)),
       client(client)
 {}
 

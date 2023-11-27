@@ -342,6 +342,7 @@ class ClientBase {
   static bool is_warehouse_hotspot(uint wid);
 
   template <class T> T GenerateTransactionInput();
+  template <typename T> T ParseTransactionInput(char* &input);
 
   static uint32_t AcquireLastNewOrderId(int warehouse, int district);
   // TODO: We need the following for random sharding.
@@ -436,6 +437,13 @@ class Client : public felis::EpochClient, public ClientBase {
 using TxnFactory =
     util::Factory<felis::BaseTxn, TxnType, TxnType::AllTxn, Client *, uint64_t>;
 
+struct TPCCTransactionMarshalled
+{
+  uint8_t txn_type; // 0 for NewOrder, 1 for Payment
+  uint64_t cown_ptrs[30];
+  uint32_t params[65];
+  uint8_t padding[11];
+} __attribute__((packed));
 }
 
 #define ROW_SLICE_MAPPING_DIRECT

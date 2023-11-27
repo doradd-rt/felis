@@ -112,6 +112,7 @@ class NewOrderTxn : public Txn<NewOrderState>, public NewOrderStruct {
   Client *client;
  public:
   NewOrderTxn(Client *client, uint64_t serial_id);
+  NewOrderTxn(Client *client, uint64_t serial_id, char* &input);
 
   void Run() override final;
   void Prepare() override final;

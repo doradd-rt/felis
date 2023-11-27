@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
   // init tables from the workload module
   Module<WorkloadModule>::InitModule(workload_name);
 
-#if 0
+#if 1 
   // parsing txn from external logs instead of in-mem generation
   int fd = open(Options::kLogFile.Get().c_str(), O_RDONLY);
   if (fd == -1) 
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
   console.WaitForServerStatus(Console::ServerStatus::Exiting);
   go::WaitThreadPool();
 #endif
-#endif
+#else
   auto client = EpochClient::g_workload_client;
   logger->info("Generating Benchmarks...");
   client->GenerateBenchmarks();
@@ -157,5 +157,6 @@ int main(int argc, char *argv[])
 
   console.WaitForServerStatus(Console::ServerStatus::Exiting);
   go::WaitThreadPool();
+#endif
   return 0;
 }
