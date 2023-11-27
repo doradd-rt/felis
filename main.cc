@@ -94,6 +94,7 @@ int main(int argc, char *argv[])
   // init tables from the workload module
   Module<WorkloadModule>::InitModule(workload_name);
 
+#if 0
   // parsing txn from external logs instead of in-mem generation
   int fd = open(Options::kLogFile.Get().c_str(), O_RDONLY);
   if (fd == -1) 
@@ -138,5 +139,23 @@ int main(int argc, char *argv[])
   console.WaitForServerStatus(Console::ServerStatus::Exiting);
   go::WaitThreadPool();
 #endif
+#endif
+  auto client = EpochClient::g_workload_client;
+  logger->info("Generating Benchmarks...");
+  client->GenerateBenchmarks();
+   
+  console.UpdateServerStatus(Console::ServerStatus::Listening);
+  logger->info("Ready. Waiting for run command from the controller.");
+  console.WaitForServerStatus(felis::Console::ServerStatus::Running);
+
+  abort_if(EpochClient::g_workload_client == nullptr,
+           "Workload Module did not setup the EpochClient properly");
+
+  printf("\n");
+  logger->info("Starting workload");
+  client->Start();
+
+  console.WaitForServerStatus(Console::ServerStatus::Exiting);
+  go::WaitThreadPool();
   return 0;
 }

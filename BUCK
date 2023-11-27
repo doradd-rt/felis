@@ -77,9 +77,9 @@ cxx_library(
 cxx_library(
     name='ycsb',
     srcs=ycsb_srcs,
-    compiler_flags=includes + ['-DDISPATCHER', '-DLATENCY'],
+    # compiler_flags=includes + ['-DDISPATCHER', '-DLATENCY'],
     #compiler_flags=includes + ['-DDISPATCHER'],
-    #compiler_flags=includes,
+    compiler_flags=includes,
     headers=db_headers + ycsb_headers,
     link_whole=True,
 )
@@ -88,12 +88,12 @@ cxx_binary(
     name='db',
     srcs=['main.cc', 'module.cc'] + db_srcs,
     headers=db_headers,
-    compiler_flags=includes + ['-DDISPATCHER', '-DLATENCY'],
+    # compiler_flags=includes + ['-DDISPATCHER', '-DLATENCY'],
     #compiler_flags=includes + ['-DDISPATCHER'],
-    #compiler_flags=includes,
+    compiler_flags=includes,
     linker_flags=libs,
-    #deps=[':tpcc', ':ycsb'],
-    deps=[':ycsb'],
+    deps=[':tpcc', ':ycsb'],
+    #deps=[':ycsb'],
 )
 
 cxx_test(
