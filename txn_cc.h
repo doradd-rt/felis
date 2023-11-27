@@ -215,6 +215,7 @@ class Txn : public BaseTxn {
     template <typename T> bool WriteTryInline(const T &o) {
       return WriteVarStr(o.EncodeToPtrOrDefault(vhandle->AllocFromInline(sizeof(VarStr) + o.EncodeSize())));
     }
+
   };
 
   class TxnHandle : public BaseTxnHandle {

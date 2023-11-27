@@ -79,6 +79,7 @@ cxx_library(
     srcs=ycsb_srcs,
     compiler_flags=includes + ['-DDISPATCHER', '-DLATENCY'],
     #compiler_flags=includes + ['-DDISPATCHER'],
+    #compiler_flags=includes,
     headers=db_headers + ycsb_headers,
     link_whole=True,
 )
@@ -89,6 +90,7 @@ cxx_binary(
     headers=db_headers,
     compiler_flags=includes + ['-DDISPATCHER', '-DLATENCY'],
     #compiler_flags=includes + ['-DDISPATCHER'],
+    #compiler_flags=includes,
     linker_flags=libs,
     #deps=[':tpcc', ':ycsb'],
     deps=[':ycsb'],

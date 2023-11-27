@@ -33,8 +33,10 @@ struct RMWState {
   struct LookupCompletion : public TxnStateCompletion<RMWState> {
     void operator()(int id, BaseTxn::LookupRowResult rows) {
       state->rows[id] = rows[0];
-      if (id < kTotal - Client::g_extra_read) {
-        bool last = (id == kTotal - Client::g_extra_read - 1);
+      //if (id < kTotal - Client::g_extra_read) {
+      if (id < kTotal) {
+        //bool last = (id == kTotal - Client::g_extra_read - 1);
+        bool last = (id == 1);
         handle(rows[0]).AppendNewVersion(last ? 0 : 1);
       }
     }
@@ -98,15 +100,19 @@ char Client::zero_data[100];
 
 class RMWTxn : public Txn<RMWState>, public RMWStruct {
   Client *client;
+
  public:
   RMWTxn(Client *client, uint64_t serial_id);
   RMWTxn(Client *client, uint64_t serial_id, char* &input);
+
   void Run() override final;
   void Prepare() override final;
   void PrepareInsert() override final {}
   static void WriteRow(TxnRow vhandle);
   static void ReadRow(TxnRow vhandle);
 
+  static void WriteSpin();
+ 
   template <typename Func>
   void RunOnPartition(Func f) {
     auto handle = index_handle();
@@ -151,7 +157,8 @@ void RMWTxn::Prepare()
       dbk.k = k;
       void *buf = alloca(512);
       state->rows[i] = rel.Search(dbk.EncodeView(buf));
-      if (i < kTotal - Client::g_extra_read)
+      //if (i < kTotal - Client::g_extra_read)
+      if (i < kTotal)
         handle(state->rows[i]).AppendNewVersion();
     };
     if (Client::g_enable_pwv) {
@@ -180,46 +187,62 @@ void RMWTxn::Prepare()
   }
 }
 
-#define TIME 200
+static thread_local int cnt = 0;
+
+void RMWTxn::WriteSpin()
+{
+  long serv_t;
+  if (cnt++ >= 624)
+  {
+    cnt = 0;
+    serv_t = 1'000'000;
+    printf("cnt is %d\n", cnt);
+  } 
+  else
+  serv_t = 20000;
+  auto time_now = time_ns();
+
+  while (time_ns() < (time_now + serv_t))
+    _mm_pause();
+}
 
 void RMWTxn::WriteRow(TxnRow vhandle)
 {
-#if 1
-  auto time_now = time_ns();
-  while (time_ns() < (time_now + TIME));
-#else
   auto dbv = vhandle.Read<Ycsb::Value>();
   dbv.v.assign(Client::zero_data, 100);
   dbv.v.resize_junk(900);
   vhandle.Write(dbv);
-#endif
 }
 
 void RMWTxn::ReadRow(TxnRow vhandle)
 {
-#if 1
-  auto time_now = time_ns();
-  while (time_ns() < (time_now + TIME));
-#else
   vhandle.Read<Ycsb::Value>();
-#endif
 }
 
 void RMWTxn::Run()
 {
+#if 0 
+  init_time = std::chrono::high_resolution_clock::now();
+#endif
+
   if (Client::g_dependency)
     state->signal = 0;
 
   if (!Options::kEnablePartition) {
-    auto bitmap = 1ULL << (kTotal - Client::g_extra_read - 1);
-    for (int i = 0; i < kTotal - Client::g_extra_read - 1; i++) {
+    //auto bitmap = 1ULL << (kTotal - Client::g_extra_read - 1);
+    auto bitmap = 1ULL << kTotal;
+    //for (int i = 0; i < kTotal - Client::g_extra_read - 1; i++) {
+#if 0 
+    for (int i = 0; i < kTotal; i++) {
       state->futures[i] = UpdateForKey(
           1, state->rows[i],
           [](const auto &ctx, VHandle *row) {
             auto &[state, index_handle] = ctx;
             WriteRow(index_handle(row));
+            //WriteSpin();
             if (Client::g_dependency
-                && state->signal.fetch_add(1) + 1 == kTotal - Client::g_extra_read - 1)
+                //&& state->signal.fetch_add(1) + 1 == kTotal - Client::g_extra_read - 1)
+                && state->signal.fetch_add(1) + 1 == kTotal - 1)
               state->deps.Signal();
           });
 
@@ -227,12 +250,14 @@ void RMWTxn::Run()
         bitmap |= 1ULL << i;
     }
 
+#endif
     auto aff = std::numeric_limits<uint64_t>::max();
     // auto aff = AffinityFromRows(bitmap, state->rows);
     root->AttachRoutine(
         MakeContext(), 1,
         [](const auto &ctx) {
           auto &[state, index_handle] = ctx;
+#if 0 
           for (int i = 0; i < kTotal - Client::g_extra_read - 1; i++) {
             state->futures[i].Invoke(state, index_handle);
           }
@@ -240,17 +265,35 @@ void RMWTxn::Run()
             state->deps.Wait();
           }
           WriteRow(index_handle(state->rows[kTotal - Client::g_extra_read - 1]));
+          WriteSpin();
           for (auto i = kTotal - Client::g_extra_read; i < kTotal; i++) {
             ReadRow(index_handle(state->rows[i]));
           }
+#else
+          for (auto i = 0; i < kTotal; i++) {
+            ReadRow(index_handle(state->rows[i]));
+          }
+          WriteSpin();
+          //for (int i = 0; i < kTotal; i++) {
+          //  state->futures[i].Invoke(state, index_handle);
+          //}
+          //if (Client::g_dependency) {
+          //  state->deps.Wait();
+          //}
+          for (int i = 0; i < kTotal; i++)
+            //WriteRow(index_handle(state->rows[kTotal - Client::g_extra_read - 1]));
+            WriteRow(index_handle(state->rows[i]));
+#endif
         },
         aff);
 
 #if defined(DISPATCHER) && defined(LATENCY)
-    auto time_now = std::chrono::system_clock::now();
+    auto time_now = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> log_duration = time_now - init_time;
+    //std::chrono::duration<double> log_duration = time_now - exec_init_time;
       // log at precision - 100ns
-    duration = static_cast<uint32_t>(log_duration.count() * 10'000'000);
+    //duration = static_cast<uint32_t>(log_duration.count() * 1'000'000);
+    duration = std::chrono::duration_cast<std::chrono::nanoseconds>(time_now - init_time);
 #endif
   } else if (Client::g_enable_granola || Client::g_enable_pwv) {
     RunOnPartition(
@@ -286,9 +329,9 @@ void RMWTxn::Run()
               part);
 #if defined(DISPATCHER) && defined(LATENCY)
             auto time_now = std::chrono::system_clock::now();
-            std::chrono::duration<double> log_duration = time_now - init_time;
+            //std::chrono::duration<double> log_duration = time_now - init_time;
             // log at precision - 100ns
-            duration = static_cast<uint32_t>(log_duration.count() * 10'000'000);
+            //duration = static_cast<uint32_t>(log_duration.count() * 10'000'000);
 #endif
         });
   } else {

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-Path="/home/scofield/caracal/felis/results/cont0/noskew/nodep/caracal-pieces/"
+Path="/home/scofield/caracal/felis/results/cont7/noskew/nodep/caracal-pieces/"
 processLatency="/home/scofield/caracal/felis/scripts/p99-latency.py"
 processThroughput="/home/scofield/caracal/felis/scripts/throughput.py"
 

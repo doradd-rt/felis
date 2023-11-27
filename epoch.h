@@ -201,7 +201,6 @@ class EpochClient {
 
   virtual BaseTxn *CreateTxn(uint64_t serial_id) = 0;
   virtual BaseTxn *ParseAndPopulateTxn(uint64_t serial_id, char* &input) = 0;
-
  private:
   long WaitCountPerMS();
 
@@ -221,7 +220,8 @@ class EpochClient {
   unsigned long total_nr_txn;
   unsigned long *per_core_cnts[NodeConfiguration::kMaxNrThreads];
 #if defined(DISPATCHER) && defined(LATENCY)
-  std::vector<uint32_t>* log_arr;
+  //std::vector<uint32_t>* log_arr;
+  std::vector<long long>* log_arr;
 #endif
   LocalityManager cont_lmgr;
 

@@ -223,9 +223,9 @@ void EpochDispatcher::Run()
       auto d = std::div((int)(j - 1), NodeConfiguration::g_nr_threads - 1);
       auto t = d.rem, pos = d.quot;
       BaseTxn::g_cur_numa_node = t / mem::kNrCorePerNode;
+      
       client->all_txns[i - 1].per_core_txns[t]->txns[pos] = 
         client->ParseAndPopulateTxn(client->GenerateSerialId(i, j), read_pos);
-
       if (before_first_epoch) {
         client->g_workload_client->Start();
         before_first_epoch = false;
@@ -234,21 +234,22 @@ void EpochDispatcher::Run()
       count++;
       next_ts += gen_inter_arrival(dist);
     }
-
+#ifdef DISPATCHER
     // mark ready epochs and only trigger the first
     mgr.ready_epoch_nr.fetch_add(1);
+#endif
   }
 }
 
 void EpochClient::InitializeDispatcher(char* input, uint32_t count, std::string gen_type)
 {
-  //std::string gen_type = "exp:5000"; // average interval in nano-second
   dispatcher = new EpochDispatcher(input, count, this, const_cast<char*>(gen_type.c_str()));
   all_txns = new EpochTxnSet[g_max_epoch - 1];
 
 #ifdef LATENCY
 #define LOG_SIZE 400'000'000
-  log_arr = new std::vector<uint32_t>();
+  //log_arr = new std::vector<uint32_t>();
+  log_arr = new std::vector<long long>();
   log_arr->reserve(LOG_SIZE);
 #endif
 
@@ -279,7 +280,7 @@ void EpochClient::PopulateTxnsFromLogs(char* &input, uint32_t log_len)
       auto d = std::div((int)(j - 1), NodeConfiguration::g_nr_threads);
       auto t = d.rem, pos = d.quot;
       BaseTxn::g_cur_numa_node = t / mem::kNrCorePerNode;
-      all_txns[i - 1].per_core_txns[t]->txns[pos] = 
+      all_txns[i - 1].per_core_txns[t]->txns[pos] =
         ParseAndPopulateTxn(GenerateSerialId(i, j), input);
       count++;
     }
@@ -613,7 +614,8 @@ void EpochClient::OnExecuteComplete()
     for (int t = 0; t < NodeConfiguration::g_nr_threads - 1; t++) {
       for (int i = 0; i < all_txns[epoch_id - 1].per_core_txns[t]->nr; i++) {
         auto d = all_txns[epoch_id - 1].per_core_txns[t]->txns[i]->duration;
-        log_arr->push_back(d);
+        log_arr->push_back(static_cast<long long>(d.count()));
+        //log_arr->push_back(d);
       }
     }
 #endif

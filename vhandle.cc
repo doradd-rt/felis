@@ -333,7 +333,6 @@ bool SortedArrayVHandle::WriteWithVersion(uint64_t sid, VarStr *obj, uint64_t ep
 
   auto objects = versions + capacity;
   volatile uintptr_t *addr = &objects[it - versions];
-
   // Writing to exact location
   sync().OfferData(addr, (uintptr_t) obj);
 
@@ -343,7 +342,6 @@ bool SortedArrayVHandle::WriteWithVersion(uint64_t sid, VarStr *obj, uint64_t ep
     if (latest_version.compare_exchange_strong(pos, latest))
       break;
   }
-
   if (latest == size - 1) {
     nr_ondsplt = 0;
     cont_affinity = -1;
@@ -388,6 +386,28 @@ void SortedArrayVHandle::GarbageCollect()
   for (int i = 0; i < size - 1; i++) {
     VarStr *o = (VarStr *) objects[i];
     delete o;
+  }
+
+  int pos = latest_version.load();
+  uint64_t *it = versions + pos + 1;
+  int latest = it - versions;
+  /*probes::VersionWrite{this, latest, epoch_nr}();
+  while (latest > pos) {
+    if (latest_version.compare_exchange_strong(pos, latest))
+      break;
+  }*/
+  if (latest == size - 1) {
+    nr_ondsplt = 0;
+    cont_affinity = -1;
+  } else {
+    if (GC::IsDataGarbage((VHandle *) this, obj) && gc_handle == 0) {
+      auto &gc = util::Instance<GC>();
+      auto gchdl = gc.AddRow((VHandle *) this, epoch_nr);
+      uint64_t old = 0;
+      if (!gc_handle.compare_exchange_strong(old, gchdl)) {
+        gc.RemoveRow((VHandle *) this, gchdl);
+      }
+    }
   }
 
   versions[0] = versions[size - 1];

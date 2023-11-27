@@ -66,6 +66,7 @@ Inter-arrival Distribution
 
 Adding support for GarbageCollect for vhandle WriteRow
   - ycsb.cc: RMWTxn::WriteRow(TxnRow vhandle) -> vhandle.Write();
-  - txn_cc.h: TxnRow::Write -> return WriteVarStr
-  - txn.cc: BaseTxn::BaseTxnRow::WriteVarStr(VarStr *obj) -> return vhandle->WriteWithVersion()
+  - txn_cc.h: TxnRow::Write -> return WriteVarStr(o.Encode())
+  - txn.cc: BaseTxn::BaseTxnRow::WriteVarStr(VarStr *obj) ->
+      return vhandle->WriteWithVersion(uint64_t sid, VarStr *obj, uint64_t epoch_nr)
   - vhandle->GarbageCollect()

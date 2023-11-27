@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-res_path="/home/scofield/caracal/felis/results/cont0/noskew/nodep/caracal-pieces/"
+res_path="/home/scofield/caracal/felis/results/cont7/noskew/nodep/caracal-pieces/"
 script_py="/home/scofield/caracal/felis/scripts/res-parse.py"
 res_log="agg_res.txt"
 
