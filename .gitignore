@@ -3,3 +3,4 @@
 buck-out
 .ccls-cache/
 *.log
+results/
