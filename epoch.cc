@@ -614,8 +614,8 @@ void EpochClient::OnExecuteComplete()
     for (int t = 0; t < NodeConfiguration::g_nr_threads - 1; t++) {
       for (int i = 0; i < all_txns[epoch_id - 1].per_core_txns[t]->nr; i++) {
         auto d = all_txns[epoch_id - 1].per_core_txns[t]->txns[i]->duration;
-        log_arr->push_back(static_cast<long long>(d.count()));
-        //log_arr->push_back(d);
+        //log_arr->push_back(static_cast<long long>(d.count()));
+        log_arr->push_back(d);
       }
     }
 #endif

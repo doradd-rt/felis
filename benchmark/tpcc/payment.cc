@@ -260,7 +260,12 @@ void PaymentTxn::Run()
             },
             aff);
       }
-      // TODO: add timestamp here!
+#if defined(DISPATCHER) && defined(LATENCY)
+    auto time_now = std::chrono::system_clock::now();
+    std::chrono::duration<double> log_duration = time_now - init_time;
+      // log at precision - 100ns
+    duration = static_cast<uint32_t>(log_duration.count() * 1'000'000);
+#endif
     } else {
       root->AttachRoutine(
           MakeContext(bitmap, payment_amount), node,

@@ -31,8 +31,8 @@ class BaseTxn {
 
 #if defined(DISPATCHER) && defined(LATENCY)
   std::chrono::time_point<std::chrono::system_clock> init_time;
-  //uint32_t duration;
-  std::chrono::nanoseconds duration;
+  uint32_t duration;
+  //std::chrono::nanoseconds duration;
 #endif
 
   using BrkType = std::array<mem::Brk *, NodeConfiguration::kMaxNrThreads / mem::kNrCorePerNode>;
