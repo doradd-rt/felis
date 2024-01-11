@@ -39,7 +39,7 @@ void EpochCallback::operator()(unsigned long cnt)
 
   if (cnt == 0) {
     perf.End();
-    perf.Show(label);
+    //perf.Show(label);
     printf("\n");
 
     // TODO: We might Reset() the PromiseAllocationService, which would free the
@@ -468,7 +468,7 @@ void EpochClient::InitializeEpoch()
 #ifdef DISPATCHER
   // spin waiting if the epoch is not ready yet
   while(epoch_nr > mgr.get_ready_epoch_nr()) _mm_pause();
-  logger->info("Safe to trigger the next epoch {}", epoch_nr);
+  //logger->info("Safe to trigger the next epoch {}", epoch_nr);
 #endif
 
   util::Impl<PromiseAllocationService>().Reset();
@@ -483,7 +483,7 @@ void EpochClient::InitializeEpoch()
 
   cont_lmgr.Reset();
 
-  logger->info("Using EpochTxnSet {}", (void *) &all_txns[epoch_nr - 1]);
+  //logger->info("Using EpochTxnSet {}", (void *) &all_txns[epoch_nr - 1]);
 
   util::Instance<GC>().PrepareGCForAllCores();
 
@@ -504,7 +504,7 @@ void EpochClient::OnInsertComplete()
 {
   // GC must have been completed
   auto &gc = util::Instance<GC>();
-  gc.PrintStats();
+  //gc.PrintStats();
   gc.ClearStats();
   probes::EndOfPhase{util::Instance<EpochManager>().current_epoch_nr(), 0}();
 
@@ -566,7 +566,7 @@ void EpochClient::OnExecuteComplete()
     ctt += c / core_limit;
     fmt::format_to(buf, "{} ", c);
   }
-  logger->info("Wait Counts {}", std::string_view(buf.begin(), buf.size()));
+  //logger->info("Wait Counts {}", std::string_view(buf.begin(), buf.size()));
   if (Options::kCoreScaling && cur_epoch_nr > 1) {
     auto ctt_rate = ctt / callback.perf.duration_ms();
 
@@ -786,7 +786,7 @@ void EpochManager::DoAdvance(EpochClient *client)
   cur_epoch_nr.fetch_add(1);
   cur_epoch.load()->~Epoch();
   cur_epoch = new (cur_epoch) Epoch(cur_epoch_nr, client, mem);
-  logger->info("We are going into epoch {}", cur_epoch_nr);
+  //logger->info("We are going into epoch {}", cur_epoch_nr);
 }
 
 EpochManager::EpochManager(EpochMemory *mem, Epoch *epoch)

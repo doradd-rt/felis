@@ -4,3 +4,5 @@ buck-out
 .ccls-cache/
 *.log
 results/
+*.txt
+*.csv
