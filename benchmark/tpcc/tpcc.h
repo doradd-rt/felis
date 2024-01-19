@@ -440,9 +440,9 @@ using TxnFactory =
 struct TPCCTransactionMarshalled
 {
   uint8_t txn_type; // 0 for NewOrder, 1 for Payment
-  uint64_t cown_ptrs[30];
   uint32_t params[65];
-  uint8_t padding[11];
+  uint64_t cown_ptrs[33];
+  uint8_t padding[51];
 } __attribute__((packed));
 }
 
