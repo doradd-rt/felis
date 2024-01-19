@@ -373,10 +373,10 @@ void ContentionManager::Reset()
     buffer_heads[core] = g_alloc[core / mem::kNrCorePerNode].AllocHead(core);
   }
   if (Options::kOnDemandSplitting) {
-    logger->info("OnDemand {} Splitted/Batch {}/{} rows", s, nr_splitted, nr_cleared);
+    //logger->info("OnDemand {} Splitted/Batch {}/{} rows", s, nr_splitted, nr_cleared);
     felis::probes::OnDemandSplit{s, nr_cleared, nr_splitted}();
   } else {
-    logger->info("Batch {} rows", nr_cleared);
+    //logger->info("Batch {} rows", nr_cleared);
   }
 
   delete [] knapsacks;
