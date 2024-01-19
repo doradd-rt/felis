@@ -14,5 +14,6 @@ with open(sys.argv[1], 'r') as file:
 
 for i in range(len(thro)):
     r_thro = round(float(thro[i]) / 1000000, 2)
-    r_lacy = round(float(lacy[i])/10000, 1)
+    #r_lacy = round(float(lacy[i])/10000, 1)
+    r_lacy = round(float(lacy[i])/1000, 1)
     print(r_thro, r_lacy)

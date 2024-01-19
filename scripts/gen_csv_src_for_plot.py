@@ -5,12 +5,14 @@ res_file = sys.argv[1]
 
 with open(res_file, 'r') as f:
     num_lines = sum(1 for _ in f)
+    print(num_lines)
 
 with open(res_file, 'r') as f:
     idx = 0
     lines = f.readlines()
     curve_cnt =  6 # int(num_lines / 15)
-    per_curve_cnt = int(num_lines / curve_cnt)
+    #per_curve_cnt = int(num_lines / curve_cnt)
+    per_curve_cnt = 10
     curve_idx = 0
     curves = []
     curve_names = []
