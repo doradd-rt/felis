@@ -32,6 +32,16 @@ ycsb_srcs = [
     'benchmark/ycsb/ycsb_workload.cc',
 ]
 
+chain_headers = [
+    'benchmark/chain/table_decl.h',
+    'benchmark/chain/ycsb.h',
+]
+
+chain_srcs = [
+    'benchmark/chain/chain.cc',
+    'benchmark/chain/chain_workload.cc',
+]
+
 db_headers = [
     'console.h', 'felis_probes.h', 'epoch.h', 'routine_sched.h', 'gc.h', 'index.h', 'index_common.h',
     'log.h', 'mem.h', 'module.h', 'opts.h', 'node_config.h', 'probe_utils.h', 'piece.h', 'piece_cc.h',
@@ -85,6 +95,16 @@ cxx_library(
     link_whole=True,
 )
 
+cxx_library(
+    name='chain',
+    srcs=chain_srcs,
+    # compiler_flags=includes + ['-DDISPATCHER'],
+    compiler_flags=includes + ['-DDISPATCHER', '-DLATENCY'],
+    # compiler_flags=includes,
+    headers=db_headers + chain_headers,
+    link_whole=True,
+)
+
 cxx_binary(
     name='db',
     srcs=['main.cc', 'module.cc'] + db_srcs,
@@ -93,7 +113,7 @@ cxx_binary(
     #compiler_flags=includes + ['-DDISPATCHER'],
     # compiler_flags=includes,
     linker_flags=libs,
-    deps=[':tpcc', ':ycsb'],
+    deps=[':tpcc', ':ycsb', ':chain'],
     #deps=[':ycsb'],
 )
 
