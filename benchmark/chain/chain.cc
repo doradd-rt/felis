@@ -20,7 +20,8 @@ class DummySliceRouter {
 // static uint64_t *g_permutation_map;
 
 struct RMWStruct {
-  uint64_t keys[kTotal];
+  uint64_t resrc_keys[Nft::kResrcPerTxn];
+  uint64_t acc_keys[Nft::kTotal - Nft::kResrcPerTxn];
 };
 
 struct RMWState {
@@ -72,27 +73,19 @@ RMWStruct Client::GenerateTransactionInput<RMWStruct>()
   return s;
 }
 
-struct __attribute__((packed)) ChainTransactionMarshalled
-{
-  uint64_t indices[kTotal];
-  uint16_t write_set;
-  uint8_t  pad[46];
-};
-static_assert(sizeof(ChainTransactionMarshalled) == 128);
-
 template <>
 RMWStruct Client::ParseTransactionInput<RMWStruct>(char* &input)
 {
   RMWStruct s;
-  const ChainTransactionMarshalled* txm =
-    reinterpret_cast<const ChainTransactionMarshalled*>(input);
+  auto txm = reinterpret_cast<const Nft::Marshalled *>(input);
 
-  for (int i = 0; i < kTotal; i++) {
-    s.keys[i] = txm->indices[i];
-    //printf("key is %lu\n", s.keys[i]);
-  }
+  int i, j;
+  for (i = 0; i < kResrcPerTxn; i++)
+    s.resrc_keys[i] = txm->params[i];
+  for (j = 0; j < kTotal - kResrcPerTxn; j++)
+    s.acc_keys[j] = txm->params[j];
 
-  input += sizeof(ChainTransactionMarshalled);
+  input += Nft::MarshalledSize;
   return s;
 }
 
@@ -112,19 +105,20 @@ class RMWTxn : public Txn<RMWState>, public RMWStruct {
   static void ReadRow(TxnRow vhandle);
 
   static void WriteSpin();
- 
-  template <typename Func>
-  void RunOnPartition(Func f) {
-    auto handle = index_handle();
-    for (int i = 0; i < kTotal; i++) {
-      auto worker_cnt = NodeConfiguration::g_nr_threads;
-#ifdef DISPATCHER
-      worker_cnt--;
-#endif
-      auto part = (keys[i] * worker_cnt) / Client::g_table_size;
-      f(part, root, Tuple<unsigned long, int, decltype(state), decltype(handle), int>(keys[i], i, state, handle, part));
-    }
-  }
+
+  /* template <typename Func> */
+  /* void RunOnPartition(Func f) { */
+  /*   auto handle = index_handle(); */
+  /*   for (int i = 0; i < kTotal; i++) { */
+  /*     auto worker_cnt = NodeConfiguration::g_nr_threads; */
+  /* #ifdef DISPATCHER */
+  /*     worker_cnt--; */
+  /* #endif */
+  /*     auto part = (keys[i] * worker_cnt) / Client::g_table_size; */
+  /*     f(part, root, Tuple<unsigned long, int, decltype(state),
+   * decltype(handle), int>(keys[i], i, state, handle, part)); */
+  /*   } */
+  /* } */
 };
 
 RMWTxn::RMWTxn(Client *client, uint64_t serial_id)
@@ -141,6 +135,7 @@ RMWTxn::RMWTxn(Client *client, uint64_t serial_id, char* &input)
 
 void RMWTxn::Prepare()
 {
+  // lock_elision is only true for granola and PWV
   if (!VHandleSyncService::g_lock_elision) {
     Chain::Key dbk[kTotal];
     for (int i = 0; i < kTotal; i++) dbk[i].k = keys[i];

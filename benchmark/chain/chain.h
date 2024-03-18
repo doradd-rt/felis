@@ -16,6 +16,22 @@ enum class TableType : int {
   Account
 };
 
+class Nft {
+public:
+  static constexpr uint8_t kTotal = 2;
+  static constexpr uint8_t kResrcPerTxn = 1;
+  static constexpr uint64_t NUM_SENDER = 10783;
+  static constexpr uint64_t NUM_RESRC = 844;
+  static constexpr uint8_t MarshalledSize = 64;
+
+  struct __attribute__((packed)) Marshalled {
+    uint32_t params[Nft::kTotal]; // resource and user
+    uint64_t cown_ptrs[Nft::kTotal];
+    uint8_t pad[40];
+  };
+  static_assert(sizeof(Nft::Marshalled) == Nft::MarshalledSize);
+};
+
 struct Resource {
   static uint32_t HashKey(const felis::VarStrView &k) {
     auto x = (uint8_t *) k.data();
@@ -24,7 +40,8 @@ struct Resource {
 
   static constexpr auto kTable = TableType::Resource;
   //TODO: change 1M to constant para
-  static constexpr auto kIndexArgs = std::make_tuple(HashKey, 10000000, false);
+  static constexpr auto kIndexArgs =
+      std::make_tuple(HashKey, Client::g_resource_table_size, false);
 
   using IndexBackend = felis::HashtableIndex;
   using Key = sql::ResourceKey;
@@ -38,7 +55,8 @@ struct Account {
   }
 
   static constexpr auto kTable = TableType::Account;
-  static constexpr auto kIndexArgs = std::make_tuple(HashKey, 289023, false);
+  static constexpr auto kIndexArgs =
+      std::make_tuple(HashKey, Client::g_account_table_size, false);
 
   using IndexBackend = felis::HashtableIndex;
   using Key = sql::AccountKey;
