@@ -34,7 +34,7 @@ ycsb_srcs = [
 
 chain_headers = [
     'benchmark/chain/table_decl.h',
-    'benchmark/chain/ycsb.h',
+    'benchmark/chain/chain.h',
 ]
 
 chain_srcs = [

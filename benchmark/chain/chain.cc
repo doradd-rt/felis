@@ -21,24 +21,36 @@ class DummySliceRouter {
 
 struct RMWStruct {
   uint64_t resrc_keys[Nft::kResrcPerTxn];
-  uint64_t acc_keys[Nft::kTotal - Nft::kResrcPerTxn];
+  uint64_t acc_keys[Nft::kAccPerTxn];
 };
 
 struct RMWState {
-  VHandle *rows[kTotal];
-  InvokeHandle<RMWState> futures[kTotal];
+  VHandle *resrc_rows[Nft::kResrcPerTxn];
+  InvokeHandle<RMWState> resrc_futures[Nft::kResrcPerTxn];
 
-  std::atomic_ulong signal; // Used only if g_dependency
-  FutureValue<void> deps; // Used only if g_dependency
-
-  struct LookupCompletion : public TxnStateCompletion<RMWState> {
-    void operator()(int id, BaseTxn::LookupRowResult rows) {
-      state->rows[id] = rows[0];
+  struct ResrcLookupCompletion : public TxnStateCompletion<RMWState> {
+    void operator()(int id, BaseTxn::LookupRowResult resrc_rows) {
+      state->resrc_rows[id] = resrc_rows[0];
       //if (id < kTotal - Client::g_extra_read) {
-      if (id < kTotal) {
+      if (id < Nft::kResrcPerTxn) {
         //bool last = (id == kTotal - Client::g_extra_read - 1);
         bool last = (id == 1);
-        handle(rows[0]).AppendNewVersion(last ? 0 : 1);
+        handle(resrc_rows[0]).AppendNewVersion(last ? 0 : 1);
+      }
+    }
+  };
+
+  VHandle *acc_rows[Nft::kAccPerTxn];
+  InvokeHandle<RMWState> acc_futures[Nft::kAccPerTxn];
+
+  struct AccLookupCompletion : public TxnStateCompletion<RMWState> {
+    void operator()(int id, BaseTxn::LookupRowResult acc_rows) {
+      state->acc_rows[id] = acc_rows[0];
+      //if (id < kTotal - Client::g_extra_read) {
+      if (id < Nft::kAccPerTxn) {
+        //bool last = (id == kTotal - Client::g_extra_read - 1);
+        bool last = (id == 1);
+        handle(acc_rows[0]).AppendNewVersion(last ? 0 : 1);
       }
     }
   };
@@ -48,28 +60,6 @@ template <>
 RMWStruct Client::GenerateTransactionInput<RMWStruct>()
 {
   RMWStruct s;
-
-  int nr_lsb = 63 - __builtin_clzll(g_table_size) - kNrMSBContentionKey;
-  size_t mask = 0;
-  if (nr_lsb > 0) mask = (1 << nr_lsb) - 1;
-  //printf("__builtin_clzll: %d, kNrMSBContentionKey: %d, nr_lsb: %d, mask: %zu\n",
-  //    __builtin_clzll(g_table_size), kNrMSBContentionKey, nr_lsb, mask);
-
-  for (int i = 0; i < kTotal; i++) {
- again:
-    // s.keys[i] = g_permutation_map[rand.next() % g_table_size];
-    s.keys[i] = rand.next() % g_table_size;
-    if (i < g_contention_key) {
-      s.keys[i] &= ~mask;
-    } else {
-      if ((s.keys[i] & mask) == 0)
-        goto again;
-    }
-    for (int j = 0; j < i; j++)
-      if (s.keys[i] == s.keys[j])
-        goto again;
-  }
-
   return s;
 }
 
@@ -77,12 +67,12 @@ template <>
 RMWStruct Client::ParseTransactionInput<RMWStruct>(char* &input)
 {
   RMWStruct s;
-  auto txm = reinterpret_cast<const Nft::Marshalled *>(input);
+  auto txm = reinterpret_cast<const Nft::Marshalled*>(input);
 
   int i, j;
-  for (i = 0; i < kResrcPerTxn; i++)
+  for (i = 0; i < Nft::kResrcPerTxn; i++)
     s.resrc_keys[i] = txm->params[i];
-  for (j = 0; j < kTotal - kResrcPerTxn; j++)
+  for (j = 0; j < Nft::kAccPerTxn; j++)
     s.acc_keys[j] = txm->params[j];
 
   input += Nft::MarshalledSize;
@@ -101,24 +91,10 @@ class RMWTxn : public Txn<RMWState>, public RMWStruct {
   void Run() override final;
   void Prepare() override final;
   void PrepareInsert() override final {}
-  static void WriteRow(TxnRow vhandle);
-  static void ReadRow(TxnRow vhandle);
+  template<typename T> static void WriteRow(TxnRow vhandle);
+  template<typename T> static void ReadRow(TxnRow vhandle);
 
   static void WriteSpin();
-
-  /* template <typename Func> */
-  /* void RunOnPartition(Func f) { */
-  /*   auto handle = index_handle(); */
-  /*   for (int i = 0; i < kTotal; i++) { */
-  /*     auto worker_cnt = NodeConfiguration::g_nr_threads; */
-  /* #ifdef DISPATCHER */
-  /*     worker_cnt--; */
-  /* #endif */
-  /*     auto part = (keys[i] * worker_cnt) / Client::g_table_size; */
-  /*     f(part, root, Tuple<unsigned long, int, decltype(state),
-   * decltype(handle), int>(keys[i], i, state, handle, part)); */
-  /*   } */
-  /* } */
 };
 
 RMWTxn::RMWTxn(Client *client, uint64_t serial_id)
@@ -135,50 +111,24 @@ RMWTxn::RMWTxn(Client *client, uint64_t serial_id, char* &input)
 
 void RMWTxn::Prepare()
 {
-  // lock_elision is only true for granola and PWV
+  // lock_elision is only true for granola and PWV 
   if (!VHandleSyncService::g_lock_elision) {
-    Chain::Key dbk[kTotal];
-    for (int i = 0; i < kTotal; i++) dbk[i].k = keys[i];
+    Resource::Key dbk_resrc[Nft::kResrcPerTxn];
+    Account::Key dbk_acc[Nft::kAccPerTxn];
+
+    for (int i = 0; i < Nft::kResrcPerTxn; i++) dbk_resrc[i].k = resrc_keys[i];
+    for (int i = 0; i < Nft::kAccPerTxn; i++) dbk_acc[i].k = acc_keys[i];
     INIT_ROUTINE_BRK(8192);
 
     // Omit the return value because this workload is totally single node
-    TxnIndexLookup<DummySliceRouter, RMWState::LookupCompletion, void>(
+    if (Nft::kResrcPerTxn > 0)
+      TxnIndexLookup<DummySliceRouter, RMWState::ResrcLookupCompletion, void>(
         nullptr,
-        KeyParam<Chain>(dbk, kTotal));
-  } else {
-    static constexpr auto LookupIndex = [](auto k, int i, auto state, auto handle) {
-      auto &rel = util::Instance<TableManager>().Get<chain::Chain>();
-      Chain::Key dbk;
-      dbk.k = k;
-      void *buf = alloca(512);
-      state->rows[i] = rel.Search(dbk.EncodeView(buf));
-      //if (i < kTotal - Client::g_extra_read)
-      if (i < kTotal)
-        handle(state->rows[i]).AppendNewVersion();
-    };
-    if (Client::g_enable_pwv) {
-      RunOnPartition(
-          [this](auto part, auto root, const auto &t) {
-            auto [_1, i, _2, _3, _part] = t;
-            util::Instance<PWVGraphManager>()[part]->ReserveEdge(serial_id());
-          });
-    }
-    RunOnPartition(
-        [this](auto part, auto root, const auto &t) {
-          root->AttachRoutine(
-              t, 1, // Always on the local node.
-              [](auto &ctx) {
-                auto [k, i, state, handle, part] = ctx;
-                LookupIndex(k, i, state, handle);
-
-                if (Client::g_enable_pwv)
-                  util::Instance<PWVGraphManager>()[part]->AddResource(
-                      handle.serial_id(), PWVGraph::VHandleToResource(state->rows[i]));
-              },
-              part); // Partitioning affinity.
-
-        });
-
+        KeyParam<Resource>(dbk_resrc, Nft::kResrcPerTxn));
+    if (Nft::kAccPerTxn > 0)
+      TxnIndexLookup<DummySliceRouter, RMWState::AccLookupCompletion, void>(
+        nullptr,
+        KeyParam<Account>(dbk_acc, Nft::kAccPerTxn));
   }
 }
 
@@ -201,17 +151,18 @@ void RMWTxn::WriteSpin()
     _mm_pause();
 }
 
+template<typename T>
 void RMWTxn::WriteRow(TxnRow vhandle)
 {
-  auto dbv = vhandle.Read<Chain::Value>();
-  dbv.v.assign(Client::zero_data, 100);
-  dbv.v.resize_junk(900);
+  auto dbv = vhandle.Read<typename T::Value>();
+  dbv.v += 1;
   vhandle.Write(dbv);
 }
 
+template<typename T>
 void RMWTxn::ReadRow(TxnRow vhandle)
 {
-  vhandle.Read<Chain::Value>();
+  vhandle.Read<typename T::Value>();
 }
 
 void RMWTxn::Run()
@@ -220,65 +171,25 @@ void RMWTxn::Run()
   init_time = std::chrono::high_resolution_clock::now();
 #endif
 
-  if (Client::g_dependency)
-    state->signal = 0;
-
   if (!Options::kEnablePartition) {
-    //auto bitmap = 1ULL << (kTotal - Client::g_extra_read - 1);
-    auto bitmap = 1ULL << kTotal;
-    //for (int i = 0; i < kTotal - Client::g_extra_read - 1; i++) {
-#if 0 
-    for (int i = 0; i < kTotal; i++) {
-      state->futures[i] = UpdateForKey(
-          1, state->rows[i],
-          [](const auto &ctx, VHandle *row) {
-            auto &[state, index_handle] = ctx;
-            WriteRow(index_handle(row));
-            //WriteSpin();
-            if (Client::g_dependency
-                //&& state->signal.fetch_add(1) + 1 == kTotal - Client::g_extra_read - 1)
-                && state->signal.fetch_add(1) + 1 == kTotal - 1)
-              state->deps.Signal();
-          });
-
-      if (state->futures[i].has_callback())
-        bitmap |= 1ULL << i;
-    }
-
-#endif
     auto aff = std::numeric_limits<uint64_t>::max();
-    // auto aff = AffinityFromRows(bitmap, state->rows);
     root->AttachRoutine(
         MakeContext(), 1,
         [](const auto &ctx) {
-          auto &[state, index_handle] = ctx;
-#if 0 
-          for (int i = 0; i < kTotal - Client::g_extra_read - 1; i++) {
-            state->futures[i].Invoke(state, index_handle);
-          }
-          if (Client::g_dependency) {
-            state->deps.Wait();
-          }
-          WriteRow(index_handle(state->rows[kTotal - Client::g_extra_read - 1]));
+         auto &[state, index_handle] = ctx;
+
+          for (auto i = 0; i < Nft::kResrcPerTxn; i++)
+            ReadRow<Resource>(index_handle(state->resrc_rows[i]));
+          for (auto i = 0; i < Nft::kAccPerTxn; i++)
+            ReadRow<Account>(index_handle(state->acc_rows[i]));
+
           WriteSpin();
-          for (auto i = kTotal - Client::g_extra_read; i < kTotal; i++) {
-            ReadRow(index_handle(state->rows[i]));
-          }
-#else
-          for (auto i = 0; i < kTotal; i++) {
-            ReadRow(index_handle(state->rows[i]));
-          }
-          WriteSpin();
-          //for (int i = 0; i < kTotal; i++) {
-          //  state->futures[i].Invoke(state, index_handle);
-          //}
-          //if (Client::g_dependency) {
-          //  state->deps.Wait();
-          //}
-          for (int i = 0; i < kTotal; i++)
-            //WriteRow(index_handle(state->rows[kTotal - Client::g_extra_read - 1]));
-            WriteRow(index_handle(state->rows[i]));
-#endif
+
+          for (int i = 0; i < Nft::kResrcPerTxn; i++)
+            WriteRow<Resource>(index_handle(state->resrc_rows[i]));
+          for (int i = 0; i < Nft::kAccPerTxn; i++)
+            WriteRow<Account>(index_handle(state->acc_rows[i]));
+
         },
         aff);
 
@@ -290,87 +201,9 @@ void RMWTxn::Run()
     //duration = static_cast<uint32_t>(log_duration.count() * 1'000'000);
     //duration = std::chrono::duration_cast<std::chrono::nanoseconds>(time_now - init_time);
 #endif
-  } else if (Client::g_enable_granola || Client::g_enable_pwv) {
-    RunOnPartition(
-        [this](auto part, auto root, const auto &t) {
-          root->AttachRoutine(
-              t, 1,
-              [](auto &ctx) {
-                auto &[k, i, state, handle, _part] = ctx;
-
-                if (Client::g_dependency && i == kTotal - Client::g_extra_read - 1) {
-                  while (state->signal != i) _mm_pause();
-                }
-
-                TxnRow vhandle = handle(state->rows[i]);
-                auto dbv = vhandle.Read<Chain::Value>();
-
-                static thread_local volatile char buffer[100];
-                std::copy(dbv.v.data(), dbv.v.data() + 100, buffer);
-
-                if (i < kTotal - Client::g_extra_read) {
-                  dbv.v.resize_junk(90);
-                  vhandle.Write(dbv);
-                  if (Client::g_dependency && i < kTotal - Client::g_extra_read - 1) {
-                    state->signal.fetch_add(1);
-                  }
-                }
-
-                if (Client::g_enable_pwv) {
-                  util::Instance<PWVGraphManager>().local_graph()->ActivateResource(
-                      handle.serial_id(), PWVGraph::VHandleToResource(state->rows[i]));
-                }
-              },
-              part);
-#if defined(DISPATCHER) && defined(LATENCY)
-            auto time_now = std::chrono::system_clock::now();
-            //std::chrono::duration<double> log_duration = time_now - init_time;
-            // log at precision - 100ns
-            //duration = static_cast<uint32_t>(log_duration.count() * 10'000'000);
-#endif
-        });
-  } else {
-    // Bohm
-    RunOnPartition(
-        [this](auto part, auto root, const auto &t) {
-          const auto &[k, i, _1, _2, _part] = t;
-          if (i > kTotal - Client::g_extra_read) return;
-
-          static thread_local volatile char buffer[100];
-
-          if (i == kTotal - Client::g_extra_read) {
-            // All reads here
-            root->AttachRoutine(
-                t, 1,
-                [](auto &ctx) {
-                  auto [k, i, state, handle, _part] = ctx;
-
-                  TxnRow vhandle = handle(state->rows[i]);
-                  auto v = vhandle.Read<Chain::Value>();
-                  std::copy(v.v.data(), v.v.data() + 100, buffer);
-                });
-          } else {
-            root->AttachRoutine(
-                t, 1,
-                [](auto &ctx) {
-                  auto [k, i, state, handle, _part] = ctx;
-                  // Last write
-                  if (Client::g_dependency && i == kTotal - Client::g_extra_read - 1) {
-                    while (state->signal != i) _mm_pause();
-                  }
-
-                  TxnRow vhandle = handle(state->rows[i]);
-                  auto v = vhandle.Read<Chain::Value>();
-
-                  std::copy(v.v.data(), v.v.data() + 100, buffer);
-
-                  v.v.resize_junk(90);
-                  vhandle.Write(v);
-                  state->signal.fetch_add(1);
-                }, part);
-          }
-        });
-  }
+  } 
+  //else if (Client::g_enable_granola || Client::g_enable_pwv) {
+  //} 
 }
 
 void ChainLoader::Run()
@@ -458,7 +291,7 @@ bool Client::g_dependency = false;
 
 Client::Client() noexcept
 {
-  rand.init(g_table_size, g_theta, 1238);
+  //rand.init(g_table_size, g_theta, 1238);
 }
 
 BaseTxn *Client::CreateTxn(uint64_t serial_id)

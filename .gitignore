@@ -1,4 +1,3 @@
-.buckconfig.local
 .buckjavaargs
 buck-out
 .ccls-cache/

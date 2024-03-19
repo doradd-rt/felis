@@ -16,16 +16,16 @@ class ChainModule : public Module<WorkloadModule> {
     Module<CoreModule>::InitModule("node-server");
     Module<CoreModule>::InitModule("allocator");
 
-    if (Options::kChainContentionKey) {
-      chain::Client::g_contention_key = Options::kChainContentionKey.ToInt();
-    }
-    if (Options::kChainSkewFactor) {
-      chain::Client::g_theta = 0.01 * Options::kChainSkewFactor.ToInt();
-    }
-    if (Options::kChainReadOnly)
-      chain::Client::g_extra_read = Options::kChainReadOnly.ToInt();
+/*     if (Options::kChainContentionKey) { */
+/*       chain::Client::g_contention_key = Options::kChainContentionKey.ToInt(); */
+/*     } */
+/*     if (Options::kChainSkewFactor) { */
+/*       chain::Client::g_theta = 0.01 * Options::kChainSkewFactor.ToInt(); */
+/*     } */
+/*     if (Options::kChainReadOnly) */
+/*       chain::Client::g_extra_read = Options::kChainReadOnly.ToInt(); */
 
-    chain::Client::g_dependency = Options::kChainDependency;
+/*     chain::Client::g_dependency = Options::kChainDependency; */
 
     auto loader = new chain::ChainLoader();
     go::GetSchedulerFromPool(1)->WakeUp(loader);
