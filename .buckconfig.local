@@ -1,0 +1,5 @@
+[cxx]
+  cc = /usr/bin/clang-14
+  cxx = /usr/bin/clang++-14
+  as = /usr/bin/clang-14
+  ld = /usr/bin/clang++-14
