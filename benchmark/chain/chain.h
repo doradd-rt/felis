@@ -40,9 +40,9 @@ class Client : public felis::EpochClient {
   // Zipfian random generator
   RandRng rand;
 
-  friend class RMWTxn;
-  static char zero_data[100];
- public:
+  friend class ChainTxn;
+
+public:
   static double g_theta;
   static const size_t g_resource_table_size = Nft::NUM_RESRC;
   static const size_t g_account_table_size = 289023;
@@ -74,7 +74,6 @@ struct Resource {
   }
 
   static constexpr auto kTable = TableType::Resource;
-  //TODO: change 1M to constant para
   static constexpr auto kIndexArgs = std::make_tuple(HashKey, Client::g_resource_table_size, false);
 
   using IndexBackend = felis::HashtableIndex;

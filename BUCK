@@ -22,15 +22,15 @@ tpcc_srcs = [
     'benchmark/tpcc/stock_level.cc',
 ]
 
-ycsb_headers = [
-    'benchmark/ycsb/table_decl.h',
-    'benchmark/ycsb/ycsb.h',
-]
+# ycsb_headers = [
+#     'benchmark/ycsb/table_decl.h',
+#     'benchmark/ycsb/ycsb.h',
+# ]
 
-ycsb_srcs = [
-    'benchmark/ycsb/ycsb.cc',
-    'benchmark/ycsb/ycsb_workload.cc',
-]
+# ycsb_srcs = [
+#     'benchmark/ycsb/ycsb.cc',
+#     'benchmark/ycsb/ycsb_workload.cc',
+# ]
 
 chain_headers = [
     'benchmark/chain/table_decl.h',
@@ -85,15 +85,15 @@ cxx_library(
     link_whole=True,
 )
 
-cxx_library(
-    name='ycsb',
-    srcs=ycsb_srcs,
-    # compiler_flags=includes + ['-DDISPATCHER'],
-    compiler_flags=includes + ['-DDISPATCHER', '-DLATENCY'],
-    # compiler_flags=includes,
-    headers=db_headers + ycsb_headers,
-    link_whole=True,
-)
+# cxx_library(
+#     name='ycsb',
+#     srcs=ycsb_srcs,
+#     # compiler_flags=includes + ['-DDISPATCHER'],
+#     compiler_flags=includes + ['-DDISPATCHER', '-DLATENCY'],
+#     # compiler_flags=includes,
+#     headers=db_headers + ycsb_headers,
+#     link_whole=True,
+# )
 
 cxx_library(
     name='chain',
@@ -113,7 +113,8 @@ cxx_binary(
     #compiler_flags=includes + ['-DDISPATCHER'],
     # compiler_flags=includes,
     linker_flags=libs,
-    deps=[':tpcc', ':ycsb', ':chain'],
+    deps=[':chain'],
+    #deps=[':tpcc', ':ycsb', ':chain'],
     #deps=[':ycsb'],
 )
 

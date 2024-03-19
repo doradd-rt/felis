@@ -8,109 +8,89 @@ namespace chain {
 
 using namespace felis;
 
-static constexpr int kTotal = 10;
-static constexpr int kNrMSBContentionKey = 6;
-
 class DummySliceRouter {
  public:
   static int SliceToNodeId(int16_t slice_id) { return 1; } // Always on node 1
 };
 
-
-// static uint64_t *g_permutation_map;
-
-struct RMWStruct {
+struct ChainStruct {
   uint64_t resrc_keys[Nft::kResrcPerTxn];
   uint64_t acc_keys[Nft::kAccPerTxn];
 };
 
-struct RMWState {
+struct ChainState {
   VHandle *resrc_rows[Nft::kResrcPerTxn];
-  InvokeHandle<RMWState> resrc_futures[Nft::kResrcPerTxn];
 
-  struct ResrcLookupCompletion : public TxnStateCompletion<RMWState> {
-    void operator()(int id, BaseTxn::LookupRowResult resrc_rows) {
-      state->resrc_rows[id] = resrc_rows[0];
-      //if (id < kTotal - Client::g_extra_read) {
+  struct ResrcLookupCompletion : public TxnStateCompletion<ChainState> {
+    void operator()(int id, BaseTxn::LookupRowResult rows) {
+      state->resrc_rows[id] = rows[0];
       if (id < Nft::kResrcPerTxn) {
-        //bool last = (id == kTotal - Client::g_extra_read - 1);
         bool last = (id == 1);
-        handle(resrc_rows[0]).AppendNewVersion(last ? 0 : 1);
+        handle(rows[0]).AppendNewVersion(last ? 0 : 1);
       }
     }
   };
 
   VHandle *acc_rows[Nft::kAccPerTxn];
-  InvokeHandle<RMWState> acc_futures[Nft::kAccPerTxn];
 
-  struct AccLookupCompletion : public TxnStateCompletion<RMWState> {
-    void operator()(int id, BaseTxn::LookupRowResult acc_rows) {
-      state->acc_rows[id] = acc_rows[0];
-      //if (id < kTotal - Client::g_extra_read) {
+  struct AccLookupCompletion : public TxnStateCompletion<ChainState> {
+    void operator()(int id, BaseTxn::LookupRowResult rows) {
+      state->acc_rows[id] = rows[0];
       if (id < Nft::kAccPerTxn) {
-        //bool last = (id == kTotal - Client::g_extra_read - 1);
         bool last = (id == 1);
-        handle(acc_rows[0]).AppendNewVersion(last ? 0 : 1);
+        handle(rows[0]).AppendNewVersion(last ? 0 : 1);
       }
     }
   };
 };
 
-template <>
-RMWStruct Client::GenerateTransactionInput<RMWStruct>()
-{
-  RMWStruct s;
+template <> ChainStruct Client::GenerateTransactionInput<ChainStruct>() {
+  ChainStruct s;
   return s;
 }
 
 template <>
-RMWStruct Client::ParseTransactionInput<RMWStruct>(char* &input)
-{
-  RMWStruct s;
+ChainStruct Client::ParseTransactionInput<ChainStruct>(char *&input) {
+  ChainStruct s;
   auto txm = reinterpret_cast<const Nft::Marshalled*>(input);
 
   int i, j;
   for (i = 0; i < Nft::kResrcPerTxn; i++)
-    s.resrc_keys[i] = txm->params[i];
+    s.resrc_keys[i] = txm->params[i] - 1;
   for (j = 0; j < Nft::kAccPerTxn; j++)
-    s.acc_keys[j] = txm->params[j];
+    s.acc_keys[j] = txm->params[j] - 1;
 
   input += Nft::MarshalledSize;
   return s;
 }
 
-char Client::zero_data[100];
-
-class RMWTxn : public Txn<RMWState>, public RMWStruct {
+class ChainTxn : public Txn<ChainState>, public ChainStruct {
   Client *client;
 
  public:
-  RMWTxn(Client *client, uint64_t serial_id);
-  RMWTxn(Client *client, uint64_t serial_id, char* &input);
+   ChainTxn(Client *client, uint64_t serial_id);
+   ChainTxn(Client *client, uint64_t serial_id, char *&input);
 
-  void Run() override final;
-  void Prepare() override final;
-  void PrepareInsert() override final {}
-  template<typename T> static void WriteRow(TxnRow vhandle);
-  template<typename T> static void ReadRow(TxnRow vhandle);
+   void Run() override final;
+   void Prepare() override final;
+   void PrepareInsert() override final {}
+   template <typename T> static void WriteRow(TxnRow vhandle);
+   template <typename T> static void ReadRow(TxnRow vhandle);
 
-  static void WriteSpin();
+   static void WriteSpin();
 };
 
-RMWTxn::RMWTxn(Client *client, uint64_t serial_id)
-    : Txn<RMWState>(serial_id),
-      RMWStruct(client->GenerateTransactionInput<RMWStruct>()),
-      client(client)
-{}
+ChainTxn::ChainTxn(Client *client, uint64_t serial_id)
+    : Txn<ChainState>(serial_id),
+      ChainStruct(client->GenerateTransactionInput<ChainStruct>()),
+      client(client) {}
 
-RMWTxn::RMWTxn(Client *client, uint64_t serial_id, char* &input)
-    : Txn<RMWState>(serial_id),
-      RMWStruct(client->ParseTransactionInput<RMWStruct>(input)),
-      client(client)
-{}
+ChainTxn::ChainTxn(Client *client, uint64_t serial_id, char *&input)
+    : Txn<ChainState>(serial_id),
+      ChainStruct(client->ParseTransactionInput<ChainStruct>(input)),
+      client(client) {}
 
-void RMWTxn::Prepare()
-{
+void ChainTxn::Prepare() {
   // lock_elision is only true for granola and PWV 
   if (!VHandleSyncService::g_lock_elision) {
     Resource::Key dbk_resrc[Nft::kResrcPerTxn];
@@ -122,51 +102,43 @@ void RMWTxn::Prepare()
 
     // Omit the return value because this workload is totally single node
     if (Nft::kResrcPerTxn > 0)
-      TxnIndexLookup<DummySliceRouter, RMWState::ResrcLookupCompletion, void>(
-        nullptr,
-        KeyParam<Resource>(dbk_resrc, Nft::kResrcPerTxn));
+      TxnIndexLookup<DummySliceRouter, ChainState::ResrcLookupCompletion, void>(
+          nullptr, KeyParam<Resource>(dbk_resrc, Nft::kResrcPerTxn));
     if (Nft::kAccPerTxn > 0)
-      TxnIndexLookup<DummySliceRouter, RMWState::AccLookupCompletion, void>(
-        nullptr,
-        KeyParam<Account>(dbk_acc, Nft::kAccPerTxn));
+      TxnIndexLookup<DummySliceRouter, ChainState::AccLookupCompletion, void>(
+          nullptr, KeyParam<Account>(dbk_acc, Nft::kAccPerTxn));
   }
 }
 
 static thread_local int cnt = 0;
 
-void RMWTxn::WriteSpin()
-{
+void ChainTxn::WriteSpin() {
   long serv_t;
   if (cnt++ >= 624)
   {
     cnt = 0;
-    serv_t = 1'000'000;
+    serv_t = 1'000;
     printf("cnt is %d\n", cnt);
   } 
   else
-  serv_t = 20000;
+    serv_t = 200;
   auto time_now = time_ns();
 
   while (time_ns() < (time_now + serv_t))
     _mm_pause();
 }
 
-template<typename T>
-void RMWTxn::WriteRow(TxnRow vhandle)
-{
+template <typename T> void ChainTxn::WriteRow(TxnRow vhandle) {
   auto dbv = vhandle.Read<typename T::Value>();
   dbv.v += 1;
   vhandle.Write(dbv);
 }
 
-template<typename T>
-void RMWTxn::ReadRow(TxnRow vhandle)
-{
+template <typename T> void ChainTxn::ReadRow(TxnRow vhandle) {
   vhandle.Read<typename T::Value>();
 }
 
-void RMWTxn::Run()
-{
+void ChainTxn::Run() {
 #if 0 
   init_time = std::chrono::high_resolution_clock::now();
 #endif
@@ -203,7 +175,7 @@ void RMWTxn::Run()
 #endif
   } 
   //else if (Client::g_enable_granola || Client::g_enable_pwv) {
-  //} 
+  //}
 }
 
 void ChainLoader::Run()
@@ -211,7 +183,8 @@ void ChainLoader::Run()
   auto &mgr = util::Instance<felis::TableManager>();
   mgr.Create<Resource, Account>();
 
-  void *buf = alloca(512);
+  void *buf1 = alloca(1024);
+  void *buf2 = alloca(1024);
 
   auto nr_threads = NodeConfiguration::g_nr_threads;
   for (auto t = 0; t < nr_threads; t++) {
@@ -231,7 +204,8 @@ void ChainLoader::Run()
       Resource::Value dbv;
       dbk.k = i;
       dbv.v = 0;
-      auto handle = mgr.Get<chain::Resource>().SearchOrCreate(dbk.EncodeView(buf));
+      auto handle =
+          mgr.Get<chain::Resource>().SearchOrCreate(dbk.EncodeView(buf1));
       // TODO: slice mapping table stuff?
       felis::InitVersion(handle, dbv.Encode());
     }
@@ -254,7 +228,8 @@ void ChainLoader::Run()
       Account::Value dbv;
       dbk.k = i;
       dbv.v = 0;
-      auto handle = mgr.Get<chain::Account>().SearchOrCreate(dbk.EncodeView(buf));
+      auto handle =
+          mgr.Get<chain::Account>().SearchOrCreate(dbk.EncodeView(buf2));
       // TODO: slice mapping table stuff?
       felis::InitVersion(handle, dbv.Encode());
     }
@@ -296,12 +271,12 @@ Client::Client() noexcept
 
 BaseTxn *Client::CreateTxn(uint64_t serial_id)
 {
-  return new RMWTxn(this, serial_id);
+  return new ChainTxn(this, serial_id);
 }
 
 BaseTxn *Client::ParseAndPopulateTxn(uint64_t serial_id, char* &input)
 {
-  return new RMWTxn(this, serial_id, input);
+  return new ChainTxn(this, serial_id, input);
 }
 
 }
