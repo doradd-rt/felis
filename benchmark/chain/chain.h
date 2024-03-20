@@ -20,7 +20,7 @@ class Mixed {
 public:
   static constexpr uint8_t kTotal  = 38;
   static constexpr uint8_t kResrcPerTxn = 38;
-  static constexpr uint8_t  kAccPerTxn = 0;
+  static constexpr uint8_t kAccPerTxn = 0;
   static constexpr uint64_t NUM_RESRC  = 41640;
   static constexpr uint64_t MAX_LENGTH = 38;  // write len
   static constexpr uint64_t MAX_GAS    = 2270;  // run time

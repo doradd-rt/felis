@@ -14,6 +14,8 @@ class DummySliceRouter {
 };
 
 struct ChainStruct {
+  uint8_t num_writes;
+  uint32_t gas;
   uint64_t resrc_keys[TxnType::kResrcPerTxn];
   uint64_t acc_keys[TxnType::kAccPerTxn];
 };
@@ -24,10 +26,8 @@ struct ChainState {
   struct ResrcLookupCompletion : public TxnStateCompletion<ChainState> {
     void operator()(int id, BaseTxn::LookupRowResult rows) {
       state->resrc_rows[id] = rows[0];
-      if (id < TxnType::kResrcPerTxn) {
-        bool last = (id == 1);
-        handle(rows[0]).AppendNewVersion(last ? 0 : 1);
-      }
+      bool last = (id == 1);
+      handle(rows[0]).AppendNewVersion(last ? 0 : 1);
     }
   };
 
@@ -36,10 +36,8 @@ struct ChainState {
   struct AccLookupCompletion : public TxnStateCompletion<ChainState> {
     void operator()(int id, BaseTxn::LookupRowResult rows) {
       state->acc_rows[id] = rows[0];
-      if (id < TxnType::kAccPerTxn) {
-        bool last = (id == 1);
-        handle(rows[0]).AppendNewVersion(last ? 0 : 1);
-      }
+      bool last = (id == 1);
+      handle(rows[0]).AppendNewVersion(last ? 0 : 1);
     }
   };
 };
@@ -60,6 +58,13 @@ ChainStruct Client::ParseTransactionInput<ChainStruct>(char *&input) {
   for (j = 0; j < TxnType::kAccPerTxn; j++)
     s.acc_keys[j] = txm->params[j] - 1;
 
+  if constexpr (std::is_same_v<TxnType, Mixed>) {
+    s.gas = txm->gas;
+    s.num_writes = txm->num_writes;
+    abort_if(s.num_writes > TxnType::kResrcPerTxn, "??? num_writes {}", s.num_writes);
+    abort_if(s.num_writes == 0, "??? num_writes {}", s.num_writes);
+  }
+
   input += TxnType::MarshalledSize;
   return s;
 }
@@ -77,7 +82,7 @@ class ChainTxn : public Txn<ChainState>, public ChainStruct {
    template <typename T> static void WriteRow(TxnRow vhandle);
    template <typename T> static void ReadRow(TxnRow vhandle);
 
-   static void WriteSpin();
+   static void WriteSpin(int gas);
 };
 
 ChainTxn::ChainTxn(Client *client, uint64_t serial_id)
@@ -91,8 +96,15 @@ ChainTxn::ChainTxn(Client *client, uint64_t serial_id, char *&input)
       client(client) {}
 
 void ChainTxn::Prepare() {
-  // lock_elision is only true for granola and PWV 
-  if (!VHandleSyncService::g_lock_elision) {
+  if constexpr (std::is_same_v<TxnType, Mixed>) {
+    Resource::Key dbk_resrc[TxnType::kResrcPerTxn];
+
+    for (auto i = 0; i < num_writes; i++) dbk_resrc[i].k = resrc_keys[i];
+    INIT_ROUTINE_BRK(8192);
+
+    TxnIndexLookup<DummySliceRouter, ChainState::ResrcLookupCompletion, void>(
+          nullptr, KeyParam<Resource>(dbk_resrc, num_writes));
+  } else {
     Resource::Key dbk_resrc[TxnType::kResrcPerTxn];
     Account::Key dbk_acc[TxnType::kAccPerTxn];
 
@@ -112,7 +124,7 @@ void ChainTxn::Prepare() {
 
 static thread_local int cnt = 0;
 
-void ChainTxn::WriteSpin() {
+void ChainTxn::WriteSpin(int gas = 8) {
   long serv_t;
   if (cnt++ >= 624)
   {
@@ -139,12 +151,24 @@ template <typename T> void ChainTxn::ReadRow(TxnRow vhandle) {
 }
 
 void ChainTxn::Run() {
-#if 0 
-  init_time = std::chrono::high_resolution_clock::now();
-#endif
+  auto aff = std::numeric_limits<uint64_t>::max();
 
-  if (!Options::kEnablePartition) {
-    auto aff = std::numeric_limits<uint64_t>::max();
+  if constexpr (std::is_same_v<TxnType, Mixed>) {
+    root->AttachRoutine(
+        MakeContext(num_writes, gas), 1,
+        [](const auto &ctx) {
+         auto &[state, index_handle, num_writes, gas] = ctx;
+
+          for (auto i = 0; i < num_writes; i++)
+            ReadRow<Resource>(index_handle(state->resrc_rows[i]));
+
+          WriteSpin(gas);
+
+          for (int i = 0; i < num_writes; i++)
+            WriteRow<Resource>(index_handle(state->resrc_rows[i]));
+        },
+        aff);
+  } else {
     root->AttachRoutine(
         MakeContext(), 1,
         [](const auto &ctx) {
@@ -164,7 +188,7 @@ void ChainTxn::Run() {
 
         },
         aff);
-
+  }
 #if defined(DISPATCHER) && defined(LATENCY)
     //auto time_now = std::chrono::high_resolution_clock::now();
     //std::chrono::duration<double> log_duration = time_now - init_time;
@@ -173,9 +197,6 @@ void ChainTxn::Run() {
     //duration = static_cast<uint32_t>(log_duration.count() * 1'000'000);
     //duration = std::chrono::duration_cast<std::chrono::nanoseconds>(time_now - init_time);
 #endif
-  } 
-  //else if (Client::g_enable_granola || Client::g_enable_pwv) {
-  //}
 }
 
 void ChainLoader::Run()
