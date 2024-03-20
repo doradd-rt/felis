@@ -14,29 +14,29 @@ class DummySliceRouter {
 };
 
 struct ChainStruct {
-  uint64_t resrc_keys[Nft::kResrcPerTxn];
-  uint64_t acc_keys[Nft::kAccPerTxn];
+  uint64_t resrc_keys[TxnType::kResrcPerTxn];
+  uint64_t acc_keys[TxnType::kAccPerTxn];
 };
 
 struct ChainState {
-  VHandle *resrc_rows[Nft::kResrcPerTxn];
+  VHandle *resrc_rows[TxnType::kResrcPerTxn];
 
   struct ResrcLookupCompletion : public TxnStateCompletion<ChainState> {
     void operator()(int id, BaseTxn::LookupRowResult rows) {
       state->resrc_rows[id] = rows[0];
-      if (id < Nft::kResrcPerTxn) {
+      if (id < TxnType::kResrcPerTxn) {
         bool last = (id == 1);
         handle(rows[0]).AppendNewVersion(last ? 0 : 1);
       }
     }
   };
 
-  VHandle *acc_rows[Nft::kAccPerTxn];
+  VHandle *acc_rows[TxnType::kAccPerTxn];
 
   struct AccLookupCompletion : public TxnStateCompletion<ChainState> {
     void operator()(int id, BaseTxn::LookupRowResult rows) {
       state->acc_rows[id] = rows[0];
-      if (id < Nft::kAccPerTxn) {
+      if (id < TxnType::kAccPerTxn) {
         bool last = (id == 1);
         handle(rows[0]).AppendNewVersion(last ? 0 : 1);
       }
@@ -52,15 +52,15 @@ template <> ChainStruct Client::GenerateTransactionInput<ChainStruct>() {
 template <>
 ChainStruct Client::ParseTransactionInput<ChainStruct>(char *&input) {
   ChainStruct s;
-  auto txm = reinterpret_cast<const Nft::Marshalled*>(input);
+  auto txm = reinterpret_cast<const TxnType::Marshalled*>(input);
 
   int i, j;
-  for (i = 0; i < Nft::kResrcPerTxn; i++)
+  for (i = 0; i < TxnType::kResrcPerTxn; i++)
     s.resrc_keys[i] = txm->params[i] - 1;
-  for (j = 0; j < Nft::kAccPerTxn; j++)
+  for (j = 0; j < TxnType::kAccPerTxn; j++)
     s.acc_keys[j] = txm->params[j] - 1;
 
-  input += Nft::MarshalledSize;
+  input += TxnType::MarshalledSize;
   return s;
 }
 
@@ -93,20 +93,20 @@ ChainTxn::ChainTxn(Client *client, uint64_t serial_id, char *&input)
 void ChainTxn::Prepare() {
   // lock_elision is only true for granola and PWV 
   if (!VHandleSyncService::g_lock_elision) {
-    Resource::Key dbk_resrc[Nft::kResrcPerTxn];
-    Account::Key dbk_acc[Nft::kAccPerTxn];
+    Resource::Key dbk_resrc[TxnType::kResrcPerTxn];
+    Account::Key dbk_acc[TxnType::kAccPerTxn];
 
-    for (int i = 0; i < Nft::kResrcPerTxn; i++) dbk_resrc[i].k = resrc_keys[i];
-    for (int i = 0; i < Nft::kAccPerTxn; i++) dbk_acc[i].k = acc_keys[i];
+    for (int i = 0; i < TxnType::kResrcPerTxn; i++) dbk_resrc[i].k = resrc_keys[i];
+    for (int i = 0; i < TxnType::kAccPerTxn; i++) dbk_acc[i].k = acc_keys[i];
     INIT_ROUTINE_BRK(8192);
 
     // Omit the return value because this workload is totally single node
-    if (Nft::kResrcPerTxn > 0)
+    if (TxnType::kResrcPerTxn > 0)
       TxnIndexLookup<DummySliceRouter, ChainState::ResrcLookupCompletion, void>(
-          nullptr, KeyParam<Resource>(dbk_resrc, Nft::kResrcPerTxn));
-    if (Nft::kAccPerTxn > 0)
+          nullptr, KeyParam<Resource>(dbk_resrc, TxnType::kResrcPerTxn));
+    if (TxnType::kAccPerTxn > 0)
       TxnIndexLookup<DummySliceRouter, ChainState::AccLookupCompletion, void>(
-          nullptr, KeyParam<Account>(dbk_acc, Nft::kAccPerTxn));
+          nullptr, KeyParam<Account>(dbk_acc, TxnType::kAccPerTxn));
   }
 }
 
@@ -150,16 +150,16 @@ void ChainTxn::Run() {
         [](const auto &ctx) {
          auto &[state, index_handle] = ctx;
 
-          for (auto i = 0; i < Nft::kResrcPerTxn; i++)
+          for (auto i = 0; i < TxnType::kResrcPerTxn; i++)
             ReadRow<Resource>(index_handle(state->resrc_rows[i]));
-          for (auto i = 0; i < Nft::kAccPerTxn; i++)
+          for (auto i = 0; i < TxnType::kAccPerTxn; i++)
             ReadRow<Account>(index_handle(state->acc_rows[i]));
 
           WriteSpin();
 
-          for (int i = 0; i < Nft::kResrcPerTxn; i++)
+          for (int i = 0; i < TxnType::kResrcPerTxn; i++)
             WriteRow<Resource>(index_handle(state->resrc_rows[i]));
-          for (int i = 0; i < Nft::kAccPerTxn; i++)
+          for (int i = 0; i < TxnType::kAccPerTxn; i++)
             WriteRow<Account>(index_handle(state->acc_rows[i]));
 
         },

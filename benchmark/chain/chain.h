@@ -16,6 +16,27 @@ enum class TableType : int {
   Account
 };
 
+class Mixed {
+public:
+  static constexpr uint8_t kTotal  = 38;
+  static constexpr uint8_t kResrcPerTxn = 38;
+  static constexpr uint8_t  kAccPerTxn = 0;
+  static constexpr uint64_t NUM_RESRC  = 41640;
+  static constexpr uint64_t MAX_LENGTH = 38;  // write len
+  static constexpr uint64_t MAX_GAS    = 2270;  // run time
+  static constexpr uint16_t MarshalledSize = 512;
+  
+  struct __attribute__((packed)) Marshalled
+  {
+    uint8_t  num_writes;
+    uint32_t gas;   
+    uint32_t params[Mixed::kTotal];
+    uint64_t cown_ptrs[Mixed::kTotal];
+    uint8_t  pad[51];
+  };
+  static_assert(sizeof(Mixed::Marshalled) == Mixed::MarshalledSize);
+};
+
 class Nft {
 public:
   static constexpr uint8_t  kTotal   = 2;
@@ -34,7 +55,48 @@ public:
   static_assert(sizeof(Nft::Marshalled) == Nft::MarshalledSize);
 };
 
+class P2p {
+public:
+  static constexpr uint8_t  kTotal   = 2;
+  static constexpr uint8_t  kResrcPerTxn = 0;
+  static constexpr uint8_t  kAccPerTxn = 2;
+  static constexpr uint64_t NUM_RESRC  = 0;
+  static constexpr uint64_t NUM_SENDER = 51317;
+  static constexpr uint64_t NUM_RECVER = 43456;
+  static constexpr uint8_t  MarshalledSize = 64;
+  
+  struct __attribute__((packed)) Marshalled
+  {
+    uint32_t params[P2p::kTotal]; // sender and receiver
+    uint64_t cown_ptrs[P2p::kTotal];
+    uint8_t  pad[40];
+  };
+  static_assert(sizeof(P2p::Marshalled) == P2p::MarshalledSize);
+};
+
+class Dex { // Uniswap
+public:
+  static constexpr uint8_t  kTotal  = 1;
+  static constexpr uint8_t  kResrcPerTxn = 1;
+  static constexpr uint8_t  kAccPerTxn = 0;
+  static constexpr uint8_t  MarshalledSize = 64;
+  static constexpr uint64_t  NUM_RESRC = 330; // NUM_BUR
+  
+  struct __attribute__((packed)) Marshalled
+  {
+    uint32_t params[Dex::kTotal]; // sender and receiver
+    uint64_t cown_ptrs[Dex::kTotal];
+    uint8_t  pad[52];
+  };
+  static_assert(sizeof(Dex::Marshalled) == Dex::MarshalledSize);
+
+  /* static constexpr uint64_t NUM_AVG   = 267; */
+  /* static constexpr uint64_t NUM_BUR   = 330; */
+};
+
 using RandRng = foedus::assorted::ZipfianRandom;
+
+using TxnType = Mixed;
 
 class Client : public felis::EpochClient {
   // Zipfian random generator
@@ -44,7 +106,7 @@ class Client : public felis::EpochClient {
 
 public:
   static double g_theta;
-  static const size_t g_resource_table_size = Nft::NUM_RESRC;
+  static const size_t g_resource_table_size = TxnType::NUM_RESRC;
   static const size_t g_account_table_size = 289023;
   static int g_extra_read;
   static int g_contention_key;
