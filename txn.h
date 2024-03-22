@@ -143,25 +143,25 @@ class BaseTxn {
   int64_t UpdateForKeyAffinity(int node, VHandle *row);
 
   struct BaseTxnIndexOpContext {
-    static constexpr size_t kMaxPackedKeys = 15;
+    static constexpr size_t kMaxPackedKeys = 31;
     BaseTxnHandle handle;
     EpochObject state;
 
     // We can batch a lot of keys in the same context. We also should mark if
     // some keys are not used at all. Therefore, we need a bitmap.
-    uint16_t keys_bitmap;
-    uint16_t slices_bitmap;
-    uint16_t rels_bitmap;
+    uint32_t keys_bitmap;
+    uint32_t slices_bitmap;
+    uint32_t rels_bitmap;
 
-    uint16_t key_len[kMaxPackedKeys];
+    uint32_t key_len[kMaxPackedKeys];
     const uint8_t *key_data[kMaxPackedKeys];
-    int16_t slice_ids[kMaxPackedKeys];
-    int16_t relation_ids[kMaxPackedKeys];
+    int32_t slice_ids[kMaxPackedKeys];
+    int32_t relation_ids[kMaxPackedKeys];
 
     template <typename Func>
-    static void ForEachWithBitmap(uint16_t bitmap, Func f) {
+    static void ForEachWithBitmap(uint32_t bitmap, Func f) {
       for (int i = 0, j = 0; i < kMaxPackedKeys; i++) {
-        const uint16_t mask = (1 << i);
+        const uint32_t mask = (1 << i);
         if (bitmap & mask) {
           f(j, i);
           j++;
@@ -173,12 +173,12 @@ class BaseTxn {
     // We also need to send three bitmaps.
     static constexpr size_t kHeaderSize =
         sizeof(BaseTxnHandle) + sizeof(EpochObject)
-        + sizeof(uint16_t) + sizeof(uint16_t) + sizeof(uint16_t);
+        + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint32_t);
 
     BaseTxnIndexOpContext(BaseTxnHandle handle, EpochObject state,
-                      uint16_t keys_bitmap, VarStr **keys,
-                      uint16_t slices_bitmap, int16_t *slice_ids,
-                      uint16_t rels_bitmap, int16_t *rels);
+                      uint32_t keys_bitmap, VarStr **keys,
+                      uint32_t slices_bitmap, int32_t *slice_ids,
+                      uint32_t rels_bitmap, int32_t *rels);
 
 
     BaseTxnIndexOpContext() {}

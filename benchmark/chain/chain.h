@@ -1,5 +1,5 @@
-#ifndef Chain_H
-#define Chain_H
+#ifndef CHAIN_H
+#define CHAIN_H
 
 #include "table_decl.h"
 #include "epoch.h"

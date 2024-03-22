@@ -53,14 +53,19 @@ ChainStruct Client::ParseTransactionInput<ChainStruct>(char *&input) {
   auto txm = reinterpret_cast<const TxnType::Marshalled*>(input);
 
   int i, j;
-  for (i = 0; i < TxnType::kResrcPerTxn; i++)
-    s.resrc_keys[i] = txm->params[i] - 1;
-  for (j = 0; j < TxnType::kAccPerTxn; j++)
-    s.acc_keys[j] = txm->params[j] - 1;
+  /* for (i = 0; i < TxnType::kResrcPerTxn; i++) */
+  /*   s.resrc_keys[i] = txm->params[i] - 1; */
+  /* for (j = 0; j < TxnType::kAccPerTxn; j++) */
+  /*   s.acc_keys[j] = txm->params[j] - 1; */
 
+
+  int num_w = 31; // 15 pass but 16 fail due to 8194 is 16*512 (num* 512)
+  for (i = 0; i < num_w; i++)
+    s.resrc_keys[i] = (txm->params[0] + i) % TxnType::NUM_RESRC;
+    
   if constexpr (std::is_same_v<TxnType, Mixed>) {
     s.gas = txm->gas;
-    s.num_writes = txm->num_writes;
+    s.num_writes = num_w;//txm->num_writes;
     abort_if(s.num_writes > TxnType::kResrcPerTxn, "??? num_writes {}", s.num_writes);
     abort_if(s.num_writes == 0, "??? num_writes {}", s.num_writes);
   }
@@ -101,6 +106,7 @@ void ChainTxn::Prepare() {
 
     for (auto i = 0; i < num_writes; i++) dbk_resrc[i].k = resrc_keys[i];
     INIT_ROUTINE_BRK(8192);
+    /* INIT_ROUTINE_BRK(512 * (num_writes + 1)); */
 
     TxnIndexLookup<DummySliceRouter, ChainState::ResrcLookupCompletion, void>(
           nullptr, KeyParam<Resource>(dbk_resrc, num_writes));

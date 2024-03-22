@@ -1,7 +1,7 @@
 // -*- mode: c++ -*-
 
-#ifndef Chain_TABLE_DECL_H
-#define Chain_TABLE_DECL_H
+#ifndef CHAIN_TABLE_DECL_H
+#define CHAIN_TABLE_DECL_H
 
 #include "sqltypes.h"
 
