@@ -160,7 +160,8 @@ class BaseTxn {
 
     template <typename Func>
     static void ForEachWithBitmap(uint64_t bitmap, Func f) {
-      for (int i = 0, j = 0; i < kMaxPackedKeys; i++) {
+      int max_cnt = __builtin_popcountll(bitmap);
+      for (int i = 0, j = 0; i < max_cnt && i < kMaxPackedKeys; i++) {
         const uint64_t mask = (1 << i);
         if (bitmap & mask) {
           f(j, i);

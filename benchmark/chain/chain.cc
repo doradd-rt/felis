@@ -53,20 +53,16 @@ ChainStruct Client::ParseTransactionInput<ChainStruct>(char *&input) {
   auto txm = reinterpret_cast<const TxnType::Marshalled*>(input);
 
   int i, j;
-  for (i = 0; i < TxnType::kResrcPerTxn; i++)
+  for (i = 0; i < txm->num_writes; i++)
     s.resrc_keys[i] = txm->params[i] - 1;
   for (j = 0; j < TxnType::kAccPerTxn; j++)
     s.acc_keys[j] = txm->params[j] - 1;
 
-  /* int num_w = 38; // 15 pass but 16 fail due to 8194 is 16*512 (num* 512) */
-  /* for (i = 0; i < num_w; i++) */
-  /*   s.resrc_keys[i] = (txm->params[0] + i) % TxnType::NUM_RESRC; */
-    
   if constexpr (std::is_same_v<TxnType, Mixed>) {
     s.gas = txm->gas;
     s.num_writes = txm->num_writes;
-    abort_if(s.num_writes > TxnType::kResrcPerTxn, "??? num_writes {}", s.num_writes);
-    abort_if(s.num_writes == 0, "??? num_writes {}", s.num_writes);
+    /* abort_if(s.num_writes > TxnType::kResrcPerTxn, "??? num_writes {}", s.num_writes); */
+    /* abort_if(s.num_writes == 0, "??? num_writes {}", s.num_writes); */
   }
 
   input += TxnType::MarshalledSize;
@@ -101,10 +97,11 @@ ChainTxn::ChainTxn(Client *client, uint64_t serial_id, char *&input)
 
 void ChainTxn::Prepare() {
   if constexpr (std::is_same_v<TxnType, Mixed>) {
-    Resource::Key dbk_resrc[TxnType::kResrcPerTxn];
+    Resource::Key dbk_resrc[num_writes];
 
-    for (auto i = 0; i < num_writes; i++) dbk_resrc[i].k = resrc_keys[i];
     INIT_ROUTINE_BRK(8192);
+    printf("num_w is %u\n", num_writes);
+    for (auto i = 0; i < num_writes; i++) dbk_resrc[i].k = resrc_keys[i];
 
     TxnIndexLookup<DummySliceRouter, ChainState::ResrcLookupCompletion, void>(
           nullptr, KeyParam<Resource>(dbk_resrc, num_writes));
