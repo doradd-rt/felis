@@ -107,9 +107,9 @@ nosplit:
 
 BaseTxn::BaseTxnIndexOpContext::BaseTxnIndexOpContext(
     BaseTxnHandle handle, EpochObject state,
-    uint32_t keys_bitmap, VarStr **keys,
-    uint32_t slices_bitmap, int32_t *slices,
-    uint32_t rels_bitmap, int32_t *rels)
+    uint64_t keys_bitmap, VarStr **keys,
+    uint64_t slices_bitmap, int64_t *slices,
+    uint64_t rels_bitmap, int64_t *rels)
     : handle(handle), state(state), keys_bitmap(keys_bitmap),
       slices_bitmap(slices_bitmap), rels_bitmap(rels_bitmap)
 {
@@ -138,8 +138,8 @@ size_t BaseTxn::BaseTxnIndexOpContext::EncodeSize() const
     for (auto i = 0; i < nr_keys; i++) {
       sum += 2 + key_len[i];
     }
-    sum += __builtin_popcount(slices_bitmap) * sizeof(uint32_t);
-    sum += __builtin_popcount(rels_bitmap) * sizeof(int32_t);
+    sum += __builtin_popcount(slices_bitmap) * sizeof(uint64_t);
+    sum += __builtin_popcount(rels_bitmap) * sizeof(int64_t);
     return kHeaderSize + sum;
 }
 
@@ -157,11 +157,11 @@ uint8_t *BaseTxn::BaseTxnIndexOpContext::EncodeTo(uint8_t *buf) const
     p += 2 + key_len[i];
   }
 
-  memcpy(p, slice_ids, nr_slices * sizeof(int32_t));
-  p += nr_slices * sizeof(int32_t);
+  memcpy(p, slice_ids, nr_slices * sizeof(int64_t));
+  p += nr_slices * sizeof(int64_t);
 
-  memcpy(p, relation_ids, nr_rels * sizeof(int32_t));
-  p += nr_rels * sizeof(int32_t);
+  memcpy(p, relation_ids, nr_rels * sizeof(int64_t));
+  p += nr_rels * sizeof(int64_t);
 
   return p;
 }
@@ -181,11 +181,11 @@ const uint8_t *BaseTxn::BaseTxnIndexOpContext::DecodeFrom(const uint8_t *buf)
     p += 2 + key_len[i];
   }
 
-  memcpy(slice_ids, p, nr_slices * sizeof(int32_t));
-  p += nr_slices * sizeof(int32_t);
+  memcpy(slice_ids, p, nr_slices * sizeof(int64_t));
+  p += nr_slices * sizeof(int64_t);
 
-  memcpy(relation_ids, p, nr_rels * sizeof(int32_t));
-  p += nr_rels * sizeof(int32_t);
+  memcpy(relation_ids, p, nr_rels * sizeof(int64_t));
+  p += nr_rels * sizeof(int64_t);
 
   return p;
 }

@@ -68,7 +68,7 @@ class PlaceholderParam {
 
 class NodeBitmap {
  public:
-  using Pair = std::tuple<int16_t, uint32_t>;
+  using Pair = std::tuple<int16_t, uint64_t>;
  private:
   uint8_t len;
   Pair pairs[BaseTxn::BaseTxnIndexOpContext::kMaxPackedKeys];
@@ -84,11 +84,11 @@ class NodeBitmap {
   const Pair *begin() const { return pairs; }
   const Pair *end() const { return pairs + len; }
 
-  void Add(int16_t node, uint32_t bitmap) {
+  void Add(int16_t node, uint64_t bitmap) {
     pairs[len++] = Pair(node, bitmap);
   }
 
-  void MergeOrAdd(int16_t node, uint32_t bitmap) {
+  void MergeOrAdd(int16_t node, uint64_t bitmap) {
     for (int i = 0; i < len; i++) {
       auto [n, oldbitmap] = pairs[i];
       if (n == node) {
@@ -231,7 +231,7 @@ class Txn : public BaseTxn {
   struct TxnIndexOpContext : public BaseTxn::BaseTxnIndexOpContext {
    private:
     template <typename R>
-    int _FromKeyParam(uint32_t bitmap, int bitshift, int shift, R param) {
+    int _FromKeyParam(uint64_t bitmap, int bitshift, int shift, R param) {
       for (int i = bitshift; i < kMaxPackedKeys && i < bitshift + param.size(); i++) {
         if constexpr (!std::is_void<typename R::TableType>::value) {
           if (bitmap & (1 << i)) {
@@ -248,13 +248,13 @@ class Txn : public BaseTxn {
       return shift;
     }
     template <typename R, typename ...T>
-    void _FromKeyParam(uint32_t bitmap, int bitshift, int shift, R param, T ...rest) {
+    void _FromKeyParam(uint64_t bitmap, int bitshift, int shift, R param, T ...rest) {
       shift = _FromKeyParam(bitmap, bitshift, shift, param);
       _FromKeyParam(bitmap, bitshift + param.size(), shift, rest...);
     }
    public:
     template <typename ...T>
-    TxnIndexOpContext(BaseTxnHandle handle, EpochObject state, uint32_t bitmap, T ...params) {
+    TxnIndexOpContext(BaseTxnHandle handle, EpochObject state, uint64_t bitmap, T ...params) {
       this->handle = handle;
       this->state = state;
       this->keys_bitmap = this->slices_bitmap = this->rels_bitmap = bitmap;
@@ -341,7 +341,7 @@ class Txn : public BaseTxn {
 
  private:
   template <typename Router, typename KParam, typename ...KParams>
-  void KeyParamsToBitmap(uint32_t bitmap_per_node[],
+  void KeyParamsToBitmap(uint64_t bitmap_per_node[],
                          int bitshift, KParam param, KParams ...rest) {
     if constexpr (!std::is_void<typename KParam::TableType>::value) {
       auto &locator = util::Instance<SliceLocator<typename KParam::TableType>>();
@@ -355,12 +355,12 @@ class Txn : public BaseTxn {
     KeyParamsToBitmap<Router>(bitmap_per_node, bitshift + param.size(), rest...);
   }
   template <typename Router>
-  void KeyParamsToBitmap(uint32_t bitmap_per_node[], int bitshift) {}
+  void KeyParamsToBitmap(uint64_t bitmap_per_node[], int bitshift) {}
  public:
   template <typename Router, typename ...KParams>
   NodeBitmap GenerateNodeBitmap(KParams ...params) {
     auto &conf = util::Instance<NodeConfiguration>();
-    uint32_t bitmap_per_node[conf.nr_nodes() + 1];
+    uint64_t bitmap_per_node[conf.nr_nodes() + 1];
     NodeBitmap nodes_bitmap;
     std::fill(bitmap_per_node, bitmap_per_node + conf.nr_nodes() + 1, 0);
     KeyParamsToBitmap<Router>(bitmap_per_node, 0, params...);
@@ -371,7 +371,7 @@ class Txn : public BaseTxn {
     return nodes_bitmap;
   }
 
-  static constexpr uint64_t kIndexOpFlatten = std::numeric_limits<uint32_t>::max();
+  static constexpr uint64_t kIndexOpFlatten = std::numeric_limits<uint64_t>::max();
   uint64_t txn_indexop_affinity = kIndexOpFlatten;
 
   template <typename IndexOp,
