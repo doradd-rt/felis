@@ -164,9 +164,9 @@ void ChainTxn::Run() {
         aff);
   } else {
     root->AttachRoutine(
-        MakeContext(), 1,
+        MakeContext(init_time, &duration), 1,
         [](const auto &ctx) {
-         auto &[state, index_handle] = ctx;
+         auto &[state, index_handle, init_time, duration_ptr] = ctx;
 
           for (auto i = 0; i < TxnType::kResrcPerTxn; i++)
             ReadRow<Resource>(index_handle(state->resrc_rows[i]));
@@ -180,14 +180,19 @@ void ChainTxn::Run() {
           for (int i = 0; i < TxnType::kAccPerTxn; i++)
             WriteRow<Account>(index_handle(state->acc_rows[i]));
 
+    auto time_now = std::chrono::system_clock::now();
+    std::chrono::duration<double> log_duration = time_now - init_time;
+    //std::chrono::duration<double> log_duration = time_now - exec_init_time;
+    *duration_ptr = static_cast<uint32_t>(log_duration.count() * 1'000'000);
+
         },
         aff);
   }
 #if defined(DISPATCHER) && defined(LATENCY)
-    auto time_now = std::chrono::system_clock::now();
-    std::chrono::duration<double> log_duration = time_now - init_time;
-    //std::chrono::duration<double> log_duration = time_now - exec_init_time;
-    duration = static_cast<uint32_t>(log_duration.count() * 1'000'000);
+    /* auto time_now = std::chrono::system_clock::now(); */
+    /* std::chrono::duration<double> log_duration = time_now - init_time; */
+    /* //std::chrono::duration<double> log_duration = time_now - exec_init_time; */
+    /* duration = static_cast<uint32_t>(log_duration.count() * 1'000'000); */
     //duration = std::chrono::duration_cast<std::chrono::nanoseconds>(time_now - init_time);
 #endif
 }
