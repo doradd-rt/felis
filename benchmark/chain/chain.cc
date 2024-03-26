@@ -53,7 +53,7 @@ ChainStruct Client::ParseTransactionInput<ChainStruct>(char *&input) {
   auto txm = reinterpret_cast<const TxnType::Marshalled*>(input);
 
   int i, j;
-  for (i = 0; i < txm->num_writes; i++)
+  for (i = 0; i < TxnType::kResrcPerTxn; i++)
     s.resrc_keys[i] = txm->params[i] - 1;
   for (j = 0; j < TxnType::kAccPerTxn; j++)
     s.acc_keys[j] = txm->params[j] - 1;
@@ -61,8 +61,6 @@ ChainStruct Client::ParseTransactionInput<ChainStruct>(char *&input) {
   if constexpr (std::is_same_v<TxnType, Mixed>) {
     s.gas = txm->gas;
     s.num_writes = txm->num_writes;
-    /* abort_if(s.num_writes > TxnType::kResrcPerTxn, "??? num_writes {}", s.num_writes); */
-    /* abort_if(s.num_writes == 0, "??? num_writes {}", s.num_writes); */
   }
 
   input += TxnType::MarshalledSize;
@@ -100,7 +98,6 @@ void ChainTxn::Prepare() {
     Resource::Key dbk_resrc[num_writes];
 
     INIT_ROUTINE_BRK(8192);
-    printf("num_w is %u\n", num_writes);
     for (auto i = 0; i < num_writes; i++) dbk_resrc[i].k = resrc_keys[i];
 
     TxnIndexLookup<DummySliceRouter, ChainState::ResrcLookupCompletion, void>(
@@ -123,19 +120,15 @@ void ChainTxn::Prepare() {
   }
 }
 
-static thread_local int cnt = 0;
-
 void ChainTxn::WriteSpin(int gas = 8) {
-  long serv_t;
-  if (cnt++ >= 624)
-  {
-    cnt = 0;
-    serv_t = 1'000;
-    printf("cnt is %d\n", cnt);
-  } 
-  else
-    serv_t = 200;
   auto time_now = time_ns();
+  long serv_t;
+
+  if constexpr (std::is_same_v<TxnType, Mixed>) {
+    serv_t = 146'000 + 12'000 * gas; 
+  } else {
+    serv_t = TxnType::SERV_TIME;
+  }
 
   while (time_ns() < (time_now + serv_t))
     _mm_pause();
@@ -191,11 +184,10 @@ void ChainTxn::Run() {
         aff);
   }
 #if defined(DISPATCHER) && defined(LATENCY)
-    //auto time_now = std::chrono::high_resolution_clock::now();
-    //std::chrono::duration<double> log_duration = time_now - init_time;
+    auto time_now = std::chrono::system_clock::now();
+    std::chrono::duration<double> log_duration = time_now - init_time;
     //std::chrono::duration<double> log_duration = time_now - exec_init_time;
-      // log at precision - 100ns
-    //duration = static_cast<uint32_t>(log_duration.count() * 1'000'000);
+    duration = static_cast<uint32_t>(log_duration.count() * 1'000'000);
     //duration = std::chrono::duration_cast<std::chrono::nanoseconds>(time_now - init_time);
 #endif
 }
