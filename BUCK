@@ -113,9 +113,8 @@ cxx_binary(
     #compiler_flags=includes + ['-DDISPATCHER'],
     # compiler_flags=includes,
     linker_flags=libs,
-    deps=[':chain'],
-    #deps=[':tpcc', ':ycsb', ':chain'],
-    #deps=[':ycsb'],
+    # deps=[':tpcc', ':ycsb', ':chain'],
+    deps=[':tpcc'],
 )
 
 cxx_test(
