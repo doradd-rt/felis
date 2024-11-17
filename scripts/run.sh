@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #date="09-30"
-OutputParentPath="/home/scofield/caracal/test-results-10-04/e"
+OutputParentPath="/tmp/e"
 EpochSize="20000"
 OutputDir=$OutputParentPath$EpochSize
 
@@ -10,6 +10,6 @@ OutputDir=$OutputParentPath$EpochSize
   -XYcsbReadOnly8 \
   -XVHandleBatchAppend -XOnDemandSplitting100000 \
   -XEpochSize$EpochSize -XNrEpoch100 \
-  -XLogFile/home/scofield/work-backup/deterdb/scripts/zipf/ycsb_uniform_no_cont.txt \
+  -XLogFile/home/scofield/doradd/scripts/ycsb/ycsb_uniform_no_cont.txt \
   -XOutputDir$OutputDir \
   -XInterArrival"exp:10000"

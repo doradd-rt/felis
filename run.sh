@@ -9,5 +9,5 @@ OutputDir=$OutputParentPath$EpochSize
   -n host1 -w ycsb -Xcpu24 -Xmem18G \
   -XYcsbReadOnly8 \
   -XEpochSize$EpochSize -XNrEpoch2000 \
-  -XLogFile/home/scofield/work-backup/deterdb/scripts/zipf/ycsb_uniform_no_cont.txt \
+  -XLogFile/home/scofield/doradd/scripts/ycsb/ycsb_uniform_no_cont.txt \
   -XOutputDir$OutputDir

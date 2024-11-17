@@ -72,9 +72,10 @@ RMWStruct Client::GenerateTransactionInput<RMWStruct>()
 
 struct __attribute__((packed)) YCSBTransactionMarshalled
 {
-  uint64_t indices[kTotal];
+  uint32_t indices[kTotal];
   uint16_t write_set;
-  uint8_t  pad[46];
+  uint64_t cown_ptrs[kTotal];
+  uint8_t  pad[6];
 };
 static_assert(sizeof(YCSBTransactionMarshalled) == 128);
 

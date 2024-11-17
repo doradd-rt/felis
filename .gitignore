@@ -3,3 +3,6 @@
 buck-out
 .ccls-cache/
 *.log
+*.txt
+results/*
+*.json
