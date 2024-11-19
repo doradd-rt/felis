@@ -1,10 +1,10 @@
 #!/bin/bash
 
-Path="/home/scofield/caracal/felis/results/cont0/noskew/nodep/caracal-pieces/"
+res_path="/home/scofield/caracal/felis/results/cont0/noskew/nodep/caracal-pieces/"
 processLatency="/home/scofield/caracal/felis/scripts/p99-latency.py"
 processThroughput="/home/scofield/caracal/felis/scripts/throughput.py"
 
-cd $Path || exit
+cd $res_path || exit
 
 for subdir in $(ls -v); do # ne$(nrEpoch)
   cd "$subdir" || exit
