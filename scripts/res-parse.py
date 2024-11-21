@@ -8,10 +8,16 @@ with open(sys.argv[1], 'r') as file:
     for line in file:
         line = line.strip()
         if (i % 3 == 1):
-            if line.isdigit() or (line.startswith('-') and line[1:].isdigit()):
+            if line.isdigit():
                 thro.append(int(line))
+            else:
+                i -= 1
         elif (i % 3 == 2):
-            lacy.append(int(str(line.strip().split(",")[0][1:])))
+            pre_res = str(line.strip().split(",")[0][1:])
+            if pre_res.isdigit():
+                lacy.append(int(pre_res))
+            else:
+                i -= 1
         i+=1
 
 for i in range(len(thro)):
