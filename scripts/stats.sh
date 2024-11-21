@@ -4,13 +4,13 @@ trap cleanup SIGINT SIGTERM ERR EXIT
 
 cleanup() {
   trap - SIGINT SIGTERM ERR EXIT
-  # script cleanup here
 }
 
-#res_path="/home/scofield/caracal/felis/results/cont7/noskew/nodep/caracal-pieces/"
-res_path="/home/scofield/caracal/felis/results/singlewarehouse-tpcc/caracal"
-processLatency="/home/scofield/caracal/felis/scripts/p99-latency.py"
-processThroughput="/home/scofield/caracal/felis/scripts/throughput.py"
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+
+res_path="${script_dir}/../results/singlewarehouse-tpcc/caracal"
+processLatency="${script_dir}/p99-latency.py"
+processThroughput="${script_dir}/throughput.py"
 
 cd $res_path || exit
 rm -rf *-res
