@@ -1,3 +1,11 @@
+# Felis
+
+A fork of Caracal (SOSP'21) source code.
+This fork involves the main following changes.
+- [TODO] add description
+- [TODO] add new parameters explanation
+
+
 # Papers
 
 *Caracal: Contention Management with Deterministic Concurrency Control* - SOSP'21 [Paper](https://dl.acm.org/doi/10.1145/3477132.3483591) [Slides](https://docs.google.com/presentation/d/1yTEkQ7fRucArBguChkD3p_b6TOoqPdAK_rfSb7DBwog/edit?usp=sharing) [Talk](https://youtu.be/QZ8sMvck654) [Long Talk](https://youtu.be/NUWl4dSfA1c)
@@ -5,22 +13,27 @@
 Build
 =====
 
-If you on the CSL cluster, you don't need to install any
-dependencies. Otherwise, you need to install Clang 8 manually.
-
-1. First, run the configure script
+1. First, install dependencies
 
 ```
-./configure
+sudo apt-get update
+sudo apt-get install -y default-jdk ant python2 git python-is-python3 wget gnupg lsb-release software-properties-common
+wget https://apt.llvm.org/llvm.sh
+chmod +x llvm.sh
+sudo ./llvm.sh 14
+sudo apt update
+sudo apt install -y clang-14 libc++-14-dev libc++abi-14-dev lld-14
+```
+and install buck from source.
+```
+git clone https://github.com/facebook/buck.git
+cd buck
+ant
+./bin/buck build --show-output buck
+sudo ln -sf "$(pwd)/bin/buck" /usr/local/bin/buck
 ```
 
-to download the build tool `buck` and generate local config file for it.
-
-2. Now you can use `buck` to build. You can either use the `buck.pex`
-downloaded by the script, or if you're on the CSL cluster, `buck`
-installed in the environment.
-
-The command
+2. Now you can use `buck` to build. 
 
 ```
 buck build db
@@ -49,7 +62,7 @@ of HugePages. You can adjust the amount depending on your memory
 size. (Each HugePage is 2MB by default in Linux.)
 
 ```
-echo 204800 > /proc/sys/vm/nr_hugepages
+echo 51200 > /proc/sys/vm/nr_hugepages
 ```
 
 Run the Controller
@@ -74,7 +87,9 @@ Start the database on each node
 Once the controller is initialized, on each node you can run:
 
 ```
-buck-out/gen/db#release -c 127.0.0.1:<rpc_port> -n host1 -w tpcc -Xcpu16 -Xmem20G -XVHandleBatchAppend -XVHandleParallel
+buck-out/gen/db#release -c 127.0.0.1:3148 -n host1 -w ycsb -Xcpu24 -Xmem18G \
+-XVHandleBatchAppend -XEpochSize10000 -XNrEpoch100 -XInterArrivalexp:20000 \
+-XLogFile/home/<user>/ppopp-artifact/doradd/scripts/ycsb/ycsb_uniform_no_cont.txt
 ```
 
 `-c` is the felis-controller IP address (<rpc_port> and <http_port>
@@ -96,15 +111,7 @@ finish initialization, you can tell the controller that everybody can
 proceed:
 
 ```
-curl localhost:<http_port>/broadcast/ -d '{"type": "status_change", "status": "connecting"}'
-```
-
-Upon receiving this, the controller would broadcast to every node to
-start running the benchmark. When it all finishes, you can also use the
-following commands to safely shutdown. (Optional)
-
-```
-curl localhost:<http_port>/broadcast/ -d '{"type": "status_change", "status": "exiting"}'
+curl localhost:8666/broadcast/ -d '{"type": "status_change", "status": "connecting"}'
 ```
 
 Logs
@@ -120,40 +127,6 @@ The debug level will output to a log file named `dbg-hostname.log`
 where hostname is your node name. This is to prevent debugging log
 flooding your screen.
 
-
-Development
-===========
-
-ccls language server
---------------------
-
-We use `ccls` <https://github.com/MaskRay/ccls> to help our development.
-ccls is a C/C++/ObjC language server supporting cross references,
-hierarchies, completion and semantic highlighting. It is *not* essential
-for running the experiment.
-
-If you have run the `./configure` script, it would generate a `.ccls`
-configuration file for you. `ccls` supports
-[Emacs](https://github.com/MaskRay/ccls/wiki/lsp-mode),
-[Vim](https://github.com/MaskRay/ccls/wiki/vim-lsp) and
-[VSCode](https://github.com/MaskRay/ccls/wiki/Visual-Studio-Code).
-
-Mike has a precompiled `ccls` binary on the cluster machine. You can
-download at <http://fs.csl.utoronto.ca/~mike/ccls>.
-
-Zhiqi has some experience with using ccls with VSCode.
-
-
-Test
-----
-
-FIXME: Unit tests are broken now. You may skip this section.
-
-Use
-
-```
-./buck build test
-```
 
 to build the test binary. Then run the `buck-out/gen/dbtest` to run
 all unit tests. We use google-test. To run partial test, please look
