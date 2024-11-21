@@ -1,8 +1,8 @@
 #!/bin/bash
-
-res_path="/home/scofield/caracal/felis/results/cont0/noskew/nodep/caracal-pieces/"
-processLatency="/home/scofield/caracal/felis/scripts/p99-latency.py"
-processThroughput="/home/scofield/caracal/felis/scripts/throughput.py"
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+res_path="${script_dir}/../results/cont0/noskew/nodep/caracal-pieces/"
+processLatency="${script_dir}/p99-latency.py"
+processThroughput="${script_dir}/throughput.py"
 
 cd $res_path || exit
 

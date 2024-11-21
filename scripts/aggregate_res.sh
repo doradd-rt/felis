@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-
-res_path="/home/scofield/caracal/felis/results/cont0/noskew/nodep/caracal-pieces/"
-script_py="/home/scofield/caracal/felis/scripts/res-parse.py"
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+res_path="${script_dir}/../results/cont0/noskew/nodep/caracal-pieces/"
+script_py="${script_dir}/res-parse.py"
 res_log="agg_res.txt"
 
 if [[ -e $res_log ]]; then
