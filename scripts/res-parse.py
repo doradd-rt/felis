@@ -6,8 +6,13 @@ lacy = []
 with open(sys.argv[1], 'r') as file:
     i = 0
     for line in file:
+        line = line.strip()
+
         if (i % 3 == 1):
-            thro.append(int(line))
+            if line.isdigit():
+                thro.append(int(line))
+            else:
+                i -= 1  # Adjust index to recheck this line as a setting
         elif (i % 3 == 2):
             lacy.append(int(str(line.strip().split(",")[0][1:])))
         i+=1
