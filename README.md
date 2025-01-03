@@ -68,8 +68,8 @@ echo 51200 > /proc/sys/vm/nr_hugepages
 Run the Controller
 ----------------
 
-To run the workload, the felis-controller is needed. It is in a separate
-git repository. Please check the README in felis-controller.
+To run the workload, the [felis-controller](https://github.com/doradd-rt/felis-controller) 
+in another repo is needed. Please follow the README to setup the controller.
 
 First, you need to enter the config for the nodes and controller, in
 `config.json` in felis-controller.
@@ -84,7 +84,11 @@ run all the time.
 Start the database on each node
 -------------------------------
 
-Once the controller is initialized, on each node you can run:
+Once the controller is initialized via 
+```
+java -jar out/FelisController/assembly.dest/out.jar config.json`)
+```
+on each node you can run:
 
 ```
 buck-out/gen/db#release -c 127.0.0.1:3148 -n host1 -w ycsb -Xcpu24 -Xmem18G \
